@@ -22,12 +22,13 @@ import {
   4) Vul hieronder je web app config in (uit Firebase Console)
 */
 const firebaseConfig = {
-  apiKey: "VUL_HIER_JE_API_KEY_IN",
-  authDomain: "VUL-HIER.firebaseapp.com",
-  projectId: "VUL_HIER_PROJECT_ID_IN",
-  storageBucket: "VUL-HIER.appspot.com",
-  messagingSenderId: "000000000000",
-  appId: "1:000000000000:web:xxxxxxxxxxxxxxxxxxxxxx"
+  apiKey: "AIzaSyDr2RWAZQmFlL6GT_GJrWGOA1CVkS9SQw4",
+  authDomain: "buy-bye-bike.firebaseapp.com",
+  projectId: "buy-bye-bike",
+  storageBucket: "buy-bye-bike.firebasestorage.app",
+  messagingSenderId: "126651860931",
+  appId: "1:126651860931:web:240e079a62d3fc05d65f76",
+  measurementId: "G-CC33FEFCL3"
 };
 
 const DEFAULTS = {
