@@ -69,14 +69,6 @@ const CHOICES_INBOUND = [
   { key: "na", label: "⛔ Vrij", sub: "n.v.t." }
 ];
 
-const QUICK_COMBOS = [
-  { id: "bike_bike", label: "🚲🚲 Fiets heen + terug", outbound: "bike", inbound: "bike" },
-  { id: "car_bike", label: "🚗🚲 Gebracht + terug fiets", outbound: "car_drop", inbound: "bike" },
-  { id: "bike_car", label: "🚲🚗 Heen fiets + gehaald", outbound: "bike", inbound: "car_pickup" },
-  { id: "car_car", label: "🚗🚗 Gebracht + gehaald", outbound: "car_drop", inbound: "car_pickup" },
-  { id: "bus_bus", label: "🚌🚌 Bus heen + terug", outbound: "bus", inbound: "bus" },
-  { id: "carpool_carpool", label: "🚗🚗 Carpool heen + terug", outbound: "carpool", inbound: "carpool" },
-];
 
 const state = {
   authReady: false,
@@ -98,7 +90,6 @@ async function init() {
   cacheEls();
   wireStaticUI();
   renderChoiceButtons();
-  renderQuickButtons();
   loadLocalFallbackSettings();
   loadLocalFallbackRides();
   applySettingsToForm();
@@ -132,7 +123,7 @@ async function init() {
 function cacheEls() {
   [
     "dateTitle","dateSub","balanceValue","dayValue","dateInput","prevDayBtn","nextDayBtn","dayStatus",
-    "quickCombos","outboundButtons","inboundButtons","markVrijBtn","copyLinkBtn",
+    "outboundButtons","inboundButtons","markVrijBtn","copyLinkBtn",
     "statBikeRides","statFullBikeDays","statBusRides","statCarRides","statCarpoolRides","statFamilyCost",
     "scenarioDays","scenarioExtra","scenarioTotal","recentList","syncState",
     "settingsCard","parentModeBtn","openParentModeBtn","closeSettingsBtn",
@@ -200,18 +191,6 @@ function renderChoiceButtons() {
   });
 }
 
-function renderQuickButtons() {
-  els.quickCombos.innerHTML = "";
-  QUICK_COMBOS.forEach(combo => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "btn quick-btn";
-    btn.dataset.combo = combo.id;
-    btn.innerHTML = `<span class="label">${combo.label}</span><span class="hint">1 klik</span>`;
-    btn.addEventListener("click", () => saveRideForSelectedDate({ outbound: combo.outbound, inbound: combo.inbound }));
-    els.quickCombos.appendChild(btn);
-  });
-}
 
 function currentSettings() {
   return state.settings || structuredClone(DEFAULTS);
@@ -546,8 +525,7 @@ function renderAll() {
   els.dayStatus.innerHTML = pills.join("");
 
   // Enable/disable quick buttons outside range
-  const disabledForRange = !info.inRange;
-  [...els.quickCombos.querySelectorAll("button"), els.markVrijBtn].forEach(btn => btn.disabled = disabledForRange);
+  const disabledForRange = !info.inRange;  els.markVrijBtn.disabled = disabledForRange;
   [...els.outboundButtons.querySelectorAll("button"), ...els.inboundButtons.querySelectorAll("button")].forEach(btn => btn.disabled = disabledForRange);
 
   highlightChoiceButtons(ride);
