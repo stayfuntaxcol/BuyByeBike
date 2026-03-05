@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Fiets Tegoed • Larah Fae</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div id="app" class="app">
+    <header class="top-card">
+      <div class="top-row">
+        <div>
+          <div class="eyebrow">Fiets Tegoed</div>
+          <h1 id="dateTitle">Vandaag</h1>
+          <div id="dateSub" class="muted">—</div>
+        </div>
+        <div class="balance-box">
+          <div class="eyebrow">Tegoed</div>
+          <div id="balanceValue" class="balance">€ 0,00</div>
+          <div id="dayValue" class="muted small">Vandaag: € 0,00</div>
+        </div>
+      </div>
+
+      <div class="nav-row">
+        <button id="prevDayBtn" class="btn ghost" type="button">◀</button>
+        <input id="dateInput" type="date" class="date-input" />
+        <button id="nextDayBtn" class="btn ghost" type="button">▶</button>
+      </div>
+
+      <div id="dayStatus" class="pill-row"></div>
+    </header>
+
+    <section class="quick-card">
+      <div class="section-title">Snelle invoer (1 klik)</div>
+      <div class="grid grid-2" id="quickCombos">
+        <!-- filled by JS -->
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="section-title">Los invullen (2 clicks)</div>
+      <div class="route-grid">
+        <div class="route-col">
+          <div class="route-label">Heenweg</div>
+          <div id="outboundButtons" class="choice-grid"></div>
+        </div>
+        <div class="route-col">
+          <div class="route-label">Terugweg</div>
+          <div id="inboundButtons" class="choice-grid"></div>
+        </div>
+      </div>
+      <div class="row actions-row">
+        <button id="markVrijBtn" class="btn warn" type="button">⛔ Markeer dag als vrij</button>
+        <button id="copyLinkBtn" class="btn ghost" type="button">🔗 Deel link</button>
+      </div>
+    </section>
+
+    <section class="summary-card">
+      <div class="summary-grid">
+        <div class="stat">
+          <div class="stat-label">Gefietste ritten</div>
+          <div id="statBikeRides" class="stat-value">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Volledige fietsdagen</div>
+          <div id="statFullBikeDays" class="stat-value">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Busritten</div>
+          <div id="statBusRides" class="stat-value">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Auto ritten</div>
+          <div id="statCarRides" class="stat-value">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Carpool ritten</div>
+          <div id="statCarpoolRides" class="stat-value">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Gezinskosten</div>
+          <div id="statFamilyCost" class="stat-value">€ 0,00</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="scenario-box">
+        <div>
+          <div class="section-title no-margin">Scenario vanaf nu</div>
+          <div class="muted">Als Larah Fae vanaf de geselecteerde datum alle schooldagen heen + terug fietst</div>
+        </div>
+        <div class="scenario-values">
+          <div class="scenario-row"><span>Resterende schooldagen</span><strong id="scenarioDays">0</strong></div>
+          <div class="scenario-row"><span>Extra saldo mogelijk</span><strong id="scenarioExtra">€ 0,00</strong></div>
+          <div class="scenario-row"><span>Verwacht eindsaldo</span><strong id="scenarioTotal">€ 0,00</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="log-card">
+      <div class="section-title">Laatste registraties</div>
+      <div id="recentList" class="recent-list"></div>
+    </section>
+
+    <section id="settingsCard" class="settings-card hidden">
+      <div class="row between">
+        <div class="section-title no-margin">Oudermodus</div>
+        <button id="closeSettingsBtn" class="btn ghost" type="button">Sluiten</button>
+      </div>
+
+      <div class="settings-grid">
+        <label>
+          Kind naam
+          <input id="childNameInput" type="text" />
+        </label>
+        <label>
+          Startdatum telling
+          <input id="startDateInput" type="date" />
+        </label>
+        <label>
+          Einddatum schooljaar
+          <input id="endDateInput" type="date" />
+        </label>
+        <label>
+          Familie-ID (delen via link)
+          <input id="familyIdInput" type="text" />
+        </label>
+        <label>
+          Kind-ID
+          <input id="childIdInput" type="text" />
+        </label>
+        <label>
+          Pincode oudermodus
+          <input id="pinInput" type="password" inputmode="numeric" />
+        </label>
+      </div>
+
+      <div class="subsection-title">Tarieven per rit</div>
+      <div class="settings-grid rates-grid">
+        <label>🚲 Fiets (+)
+          <input id="rateBikeInput" type="number" step="0.1" />
+        </label>
+        <label>🚌 Bus (-)
+          <input id="rateBusInput" type="number" step="0.1" />
+        </label>
+        <label>🚗 Gebracht/Gehaald (-)
+          <input id="rateCarInput" type="number" step="0.1" />
+        </label>
+        <label>🚗 Carpool
+          <input id="rateCarpoolInput" type="number" step="0.1" />
+        </label>
+      </div>
+
+      <div class="subsection-title">Vrije dagen (één datum per regel, YYYY-MM-DD)</div>
+      <label>
+        <textarea id="freeDaysTextarea" rows="6" placeholder="2026-04-27&#10;2026-05-05"></textarea>
+      </label>
+
+      <div class="row actions-row">
+        <button id="saveSettingsBtn" class="btn primary" type="button">Opslaan instellingen</button>
+        <button id="openParentModeBtn" class="btn ghost" type="button">🔒 Vergrendel</button>
+        <button id="exportJsonBtn" class="btn ghost" type="button">⬇️ Export JSON</button>
+        <label class="btn ghost file-btn">
+          ⬆️ Import JSON
+          <input id="importJsonInput" type="file" accept=".json,application/json" />
+        </label>
+      </div>
+      <div class="muted small">
+        Let op: zonder Google-login is dit handig maar niet waterdicht beveiligd. Anonieme Firebase-login + verborgen familie-link geeft basisbescherming.
+      </div>
+    </section>
+
+    <footer class="footer-bar">
+      <div id="syncState" class="muted">Verbinden…</div>
+      <div class="footer-actions">
+        <button id="parentModeBtn" class="btn ghost small-btn" type="button">⚙️ Oudermodus</button>
+      </div>
+    </footer>
+  </div>
+
+  <div id="pinModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-card">
+      <div class="section-title no-margin">Oudermodus pincode</div>
+      <div class="muted">Voer de pincode in om instellingen te wijzigen</div>
+      <input id="pinModalInput" type="password" inputmode="numeric" maxlength="12" placeholder="pincode" />
+      <div class="row actions-row">
+        <button id="pinCancelBtn" class="btn ghost" type="button">Annuleren</button>
+        <button id="pinSubmitBtn" class="btn primary" type="button">Openen</button>
+      </div>
+      <div id="pinError" class="error-text"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
