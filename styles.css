@@ -104,7 +104,7 @@ body{
   width:50%;
   max-width:none;
   display:grid;
-  grid-template-columns:30px minmax(0,1fr) 30px;
+  grid-template-columns:39px minmax(0,1fr) 39px;
   gap:4px;
   align-items:stretch;
   justify-self:start;
@@ -150,9 +150,11 @@ body{
   pointer-events:none;
 }
 .nav-btn{
-  min-height:32px;
-  padding:4px 0;
-  border-radius:10px;
+  min-height:42px;
+  padding:6px 0;
+  border-radius:12px;
+  font-size:18px;
+  line-height:1;
 }
 .pill-row{
   margin-top:10px;
