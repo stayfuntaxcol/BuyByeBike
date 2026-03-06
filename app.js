@@ -81,6 +81,23 @@ const QUICK_PRESETS = [
   { id: "free",      label: "⛔⛔ Vrij", outbound: "na", inbound: "na" }
 ];
 
+const AUTO_HOLIDAYS_NORTH = [
+  { start: "2025-10-18", end: "2025-10-26", label: "Herfstvakantie" },
+  { start: "2025-12-20", end: "2026-01-04", label: "Kerstvakantie" },
+  { start: "2026-02-21", end: "2026-03-01", label: "Voorjaarsvakantie" },
+  { start: "2026-04-25", end: "2026-05-03", label: "Meivakantie" },
+  { start: "2026-07-04", end: "2026-08-16", label: "Zomervakantie" },
+  { start: "2026-10-10", end: "2026-10-18", label: "Herfstvakantie" },
+  { start: "2026-12-19", end: "2027-01-03", label: "Kerstvakantie" },
+  { start: "2027-02-20", end: "2027-02-28", label: "Voorjaarsvakantie" },
+  { start: "2027-04-24", end: "2027-05-02", label: "Meivakantie" },
+  { start: "2027-07-10", end: "2027-08-22", label: "Zomervakantie" },
+  { start: "2027-10-16", end: "2027-10-24", label: "Herfstvakantie" },
+  { start: "2027-12-25", end: "2028-01-09", label: "Kerstvakantie" },
+  { start: "2028-02-19", end: "2028-02-27", label: "Voorjaarsvakantie" },
+  { start: "2028-04-29", end: "2028-05-07", label: "Meivakantie" },
+  { start: "2028-07-15", end: "2028-08-27", label: "Zomervakantie" }
+];
 
 
 
@@ -90,8 +107,10 @@ const state = {
   db: null,
   unsubSettings: null,
   unsubRides: null,
+  unsubPayouts: null,
   settings: null,
   rides: new Map(), // dateId -> ride doc
+  payouts: new Map(), // payoutId -> payout doc
   selectedDate: todayLocalDateString(),
   parentModeUnlocked: false,
   firebaseEnabled: true
@@ -101,12 +120,14 @@ const els = {};
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
+  ensureDynamicUI();
   cacheEls();
   wireStaticUI();
   renderChoiceButtons();
   renderQuickButtons();
   loadLocalFallbackSettings();
   loadLocalFallbackRides();
+  loadLocalFallbackPayouts();
   applySettingsToForm();
   renderAll();
 
@@ -138,43 +159,146 @@ async function init() {
 function cacheEls() {
   [
     "dateTitle","dateSub","balanceValue","dayValue","dateInput","prevDayBtn","nextDayBtn","dayStatus","quickButtons",
-    "outboundButtons","inboundButtons","markVrijBtn","copyLinkBtn",
+    "outboundButtons","inboundButtons","markVrijBtn","markSickBtn","copyLinkBtn",
     "statBikeRides","statFullBikeDays","statBusRides","statCarRides","statCarpoolRides","statFamilyCost",
     "scenarioDays","scenarioExtra","scenarioTotal","recentList","syncState",
     "settingsCard","parentModeBtn","openParentModeBtn","closeSettingsBtn",
     "childNameInput","startDateInput","endDateInput","familyIdInput","childIdInput","pinInput",
     "rateBikeInput","rateBusInput","rateCarInput","rateCarpoolInput","freeDaysTextarea",
     "saveSettingsBtn","exportJsonBtn","importJsonInput",
-    "pinModal","pinModalInput","pinCancelBtn","pinSubmitBtn","pinError","toast"
+    "pinModal","pinModalInput","pinCancelBtn","pinSubmitBtn","pinError","toast",
+    "balanceTrigger","paidOutValue","payoutList",
+    "payoutModal","payoutDateInput","payoutAmountInput","payoutDescInput","payoutAgreeNameInput","payoutAgreeCheck",
+    "payoutCancelBtn","payoutSubmitBtn","payoutError"
   ].forEach(id => els[id] = document.getElementById(id));
+
+  if (!els.balanceTrigger) {
+    els.balanceTrigger = document.getElementById("balanceValue")?.closest(".balance-box") || document.getElementById("balanceValue");
+  }
 }
 
 function wireStaticUI() {
   els.dateInput.value = state.selectedDate;
 
-  els.prevDayBtn.addEventListener("click", () => shiftSelectedDate(-1));
-  els.nextDayBtn.addEventListener("click", () => shiftSelectedDate(1));
-  els.dateInput.addEventListener("change", (e) => {
+  hideLegacyActionButtons();
+
+  els.prevDayBtn?.addEventListener("click", () => shiftSelectedDate(-1));
+  els.nextDayBtn?.addEventListener("click", () => shiftSelectedDate(1));
+  els.dateInput?.addEventListener("change", (e) => {
     if (e.target.value) {
       state.selectedDate = e.target.value;
       renderAll();
     }
   });
 
+  els.balanceTrigger?.addEventListener("click", openPayoutModal);
+  els.balanceTrigger?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openPayoutModal();
+    }
+  });
 
-  els.parentModeBtn.addEventListener("click", () => openPinModal());
-  els.openParentModeBtn.addEventListener("click", () => lockParentMode());
-  els.closeSettingsBtn.addEventListener("click", () => closeSettings());
+  els.parentModeBtn?.addEventListener("click", () => openPinModal());
+  els.openParentModeBtn?.addEventListener("click", () => lockParentMode());
+  els.closeSettingsBtn?.addEventListener("click", () => closeSettings());
 
-  els.pinCancelBtn.addEventListener("click", closePinModal);
-  els.pinSubmitBtn.addEventListener("click", submitPin);
-  els.pinModalInput.addEventListener("keydown", (e) => {
+  els.pinCancelBtn?.addEventListener("click", closePinModal);
+  els.pinSubmitBtn?.addEventListener("click", submitPin);
+  els.pinModalInput?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") submitPin();
   });
 
-  els.saveSettingsBtn.addEventListener("click", saveSettingsFromForm);
-  els.exportJsonBtn.addEventListener("click", exportDataAsJson);
-  els.importJsonInput.addEventListener("change", importDataFromJson);
+  els.payoutCancelBtn?.addEventListener("click", closePayoutModal);
+  els.payoutSubmitBtn?.addEventListener("click", submitPayout);
+  els.payoutAmountInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") submitPayout();
+  });
+
+  els.saveSettingsBtn?.addEventListener("click", saveSettingsFromForm);
+  els.exportJsonBtn?.addEventListener("click", exportDataAsJson);
+  els.importJsonInput?.addEventListener("change", importDataFromJson);
+}
+
+
+function hideLegacyActionButtons() {
+  ["markVrijBtn", "markSickBtn", "copyLinkBtn"].forEach(id => {
+    const el = els[id];
+    if (el) el.remove();
+  });
+}
+
+function ensureDynamicUI() {
+  ensurePayoutSummarySection();
+  ensurePayoutModal();
+  ensureBalanceTrigger();
+}
+
+function ensureBalanceTrigger() {
+  const balanceBox = document.querySelector(".balance-box");
+  if (!balanceBox) return;
+  if (!balanceBox.id) balanceBox.id = "balanceTrigger";
+  balanceBox.setAttribute("role", "button");
+  balanceBox.setAttribute("tabindex", "0");
+  balanceBox.setAttribute("title", "Tik voor uitbetaling");
+  balanceBox.style.cursor = "pointer";
+}
+
+function ensurePayoutSummarySection() {
+  if (document.getElementById("payoutList")) return;
+  const settingsCard = document.getElementById("settingsCard");
+  if (!settingsCard?.parentNode) return;
+
+  const section = document.createElement("section");
+  section.className = "log-card";
+  section.innerHTML = `
+    <div class="section-title">Uitbetalingen</div>
+    <div id="paidOutValue" class="muted small">Totaal uitbetaald: € 0,00</div>
+    <div id="payoutList" class="recent-list"></div>
+  `;
+  settingsCard.parentNode.insertBefore(section, settingsCard);
+}
+
+function ensurePayoutModal() {
+  if (document.getElementById("payoutModal")) return;
+  const modal = document.createElement("div");
+  modal.id = "payoutModal";
+  modal.className = "modal hidden";
+  modal.setAttribute("aria-hidden", "true");
+  modal.innerHTML = `
+    <div class="modal-card">
+      <div class="section-title no-margin">Uitbetaling</div>
+      <div class="muted">Voer een bedrag in en laat Larah Fae akkoord geven.</div>
+
+      <label>
+        Datum
+        <input id="payoutDateInput" type="date" />
+      </label>
+      <label>
+        Bedrag
+        <input id="payoutAmountInput" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="0,00" />
+      </label>
+      <label>
+        Omschrijving
+        <input id="payoutDescInput" type="text" maxlength="80" placeholder="bijvoorbeeld nieuwe game" />
+      </label>
+      <label>
+        Akkoord naam
+        <input id="payoutAgreeNameInput" type="text" maxlength="80" placeholder="Larah Fae" />
+      </label>
+      <label class="row" style="gap:10px; align-items:center; margin-top:10px;">
+        <input id="payoutAgreeCheck" type="checkbox" />
+        <span>Larah Fae gaat akkoord met deze uitbetaling</span>
+      </label>
+
+      <div class="row actions-row">
+        <button id="payoutCancelBtn" class="btn ghost" type="button">Annuleren</button>
+        <button id="payoutSubmitBtn" class="btn primary" type="button">Uitbetalen</button>
+      </div>
+      <div id="payoutError" class="error-text"></div>
+    </div>
+  `;
+  document.body.appendChild(modal);
 }
 
 function renderChoiceButtons() {
@@ -243,6 +367,22 @@ function loadLocalFallbackRides() {
   }
 }
 
+
+function loadLocalFallbackPayouts() {
+  try {
+    const raw = JSON.parse(localStorage.getItem("fietsTegoed.payouts.local") || "{}");
+    for (const [k, v] of Object.entries(raw)) {
+      if (k) state.payouts.set(k, v);
+    }
+  } catch {
+    // ignore
+  }
+}
+
+function persistLocalPayouts() {
+  localStorage.setItem("fietsTegoed.payouts.local", JSON.stringify(Object.fromEntries(state.payouts)));
+}
+
 function loadLocalFallbackSettings() {
   try {
     const saved = localStorage.getItem("fietsTegoed.settings.local");
@@ -286,6 +426,7 @@ function startFirestoreListeners() {
 
   if (state.unsubSettings) state.unsubSettings();
   if (state.unsubRides) state.unsubRides();
+  if (state.unsubPayouts) state.unsubPayouts();
 
   const familyRef = doc(state.db, "families", s.familyId);
   const settingsRef = doc(state.db, "families", s.familyId, "config", "settings");
@@ -332,6 +473,20 @@ function startFirestoreListeners() {
   }, (err) => {
     console.error("Rides snapshot error", err);
     setSyncState("Fout bij sync ritten");
+  });
+
+  const payoutsCol = collection(state.db, "families", s.familyId, "children", s.childId, "payouts");
+  const payoutsQuery = query(payoutsCol, orderBy("payoutDate", "desc"));
+
+  state.unsubPayouts = onSnapshot(payoutsQuery, (snap) => {
+    state.payouts.clear();
+    snap.forEach((d) => {
+      state.payouts.set(d.id, d.data());
+    });
+    renderAll();
+  }, (err) => {
+    console.error("Payouts snapshot error", err);
+    setSyncState("Fout bij sync uitbetalingen");
   });
 
   setSyncState(`Sync actief • ${s.familyId}/${s.childId}`);
@@ -455,6 +610,7 @@ async function saveSettingsFromForm() {
 
     if (familyChanged) {
       state.rides.clear();
+      state.payouts.clear();
       startFirestoreListeners();
     } else {
       renderAll();
@@ -474,6 +630,15 @@ function rideRefForDate(dateId) {
   return doc(state.db, "families", s.familyId, "children", s.childId, "rides", dateId);
 }
 
+function payoutsCollectionRef() {
+  const s = currentSettings();
+  return collection(state.db, "families", s.familyId, "children", s.childId, "payouts");
+}
+
+function nextPayoutId() {
+  return `${todayLocalDateString()}-${randomToken(6)}`;
+}
+
 async function saveRideForSelectedDate({ outbound, inbound }) {
   const dateId = state.selectedDate;
   const s = currentSettings();
@@ -482,6 +647,11 @@ async function saveRideForSelectedDate({ outbound, inbound }) {
   if (!schoolInfo.inRange) {
     toast("Datum ligt buiten ingestelde periode");
     return;
+  }
+
+  if (schoolInfo.isFreeDay && outbound !== "sick" && inbound !== "sick") {
+    outbound = "na";
+    inbound = "na";
   }
 
   const computed = computeDayTotals({ outbound, inbound }, s);
@@ -563,27 +733,24 @@ function renderAll() {
 
   const info = classifyDate(selected, s);
   const ride = getRideForDate(selected);
-  const computed = computeDayTotals({
-    outbound: ride?.outbound ?? "na",
-    inbound: ride?.inbound ?? "na"
-  }, s);
 
-  // top info
   const d = parseDateLocal(selected);
   els.dateTitle.textContent = formatLongDateNL(d);
   if (els.dateSub) els.dateSub.textContent = "";
   if (els.dayValue) els.dayValue.textContent = "";
   if (els.dayStatus) els.dayStatus.innerHTML = "";
 
-  // Enable/disable choices outside range
-  const disabledForRange = !info.inRange;
-  [...els.outboundButtons.querySelectorAll("button"), ...els.inboundButtons.querySelectorAll("button")].forEach(btn => btn.disabled = disabledForRange);
+  const disableChoices = !info.inRange || info.isFreeDay;
+  [...els.outboundButtons.querySelectorAll("button"), ...els.inboundButtons.querySelectorAll("button")]
+    .forEach(btn => btn.disabled = disableChoices);
 
-  highlightChoiceButtons(ride);
+  highlightChoiceButtons(disableChoices ? null : ride);
 
-  // summary totals
   const totals = computePeriodTotals(s);
   els.balanceValue.textContent = formatEUR(totals.balance);
+  if (els.paidOutValue) {
+    els.paidOutValue.textContent = `Totaal uitbetaald: ${formatEUR(totals.paidOut)}`;
+  }
   els.statBikeRides.textContent = String(totals.bikeRides);
   els.statFullBikeDays.textContent = String(totals.fullBikeDays);
   els.statBusRides.textContent = String(totals.busRides);
@@ -597,6 +764,7 @@ function renderAll() {
   els.scenarioTotal.textContent = formatEUR(scenario.expectedEndBalance);
 
   renderRecentList(s);
+  renderPayoutList(s);
 }
 
 function highlightChoiceButtons(ride) {
@@ -687,7 +855,8 @@ function computeDayTotals(ride, s) {
 }
 
 function computePeriodTotals(s) {
-  let balance = 0;
+  let earned = 0;
+  let paidOut = 0;
   let bikeRides = 0;
   let busRides = 0;
   let carRides = 0;
@@ -697,7 +866,8 @@ function computePeriodTotals(s) {
 
   for (const [dateId, ride] of state.rides.entries()) {
     if (dateId < s.startDate || dateId > s.endDate) continue;
-    balance += Number(ride.total || 0);
+    if (classifyDate(dateId, s).isFreeDay) continue;
+    earned += Number(ride.total || 0);
     bikeRides += Number(ride.bikeRides || 0);
     busRides += Number(ride.busRides || 0);
     carRides += Number(ride.carRides || 0);
@@ -706,8 +876,16 @@ function computePeriodTotals(s) {
     if (ride.outbound === "bike" && ride.inbound === "bike") fullBikeDays++;
   }
 
+  for (const payout of state.payouts.values()) {
+    const dateId = payout.payoutDate || payout.dateId;
+    if (!validDateId(dateId)) continue;
+    paidOut += Number(payout.amount || 0);
+  }
+
   return {
-    balance: round2(balance),
+    earned: round2(earned),
+    paidOut: round2(paidOut),
+    balance: round2(earned - paidOut),
     bikeRides,
     busRides,
     carRides,
@@ -738,13 +916,21 @@ function classifyDate(dateId, s) {
   const inRange = dateId >= s.startDate && dateId <= s.endDate;
   const wd = weekdayIndex(dateId);
   const isWeekend = wd === 0 || wd === 6;
+  const autoHoliday = getAutoHoliday(dateId);
+  const isAutoHoliday = !!autoHoliday;
   const isManualFreeDay = (s.freeDays || []).includes(dateId);
-  const isFreeDay = isWeekend || isManualFreeDay;
+  const isFreeDay = isWeekend || isAutoHoliday || isManualFreeDay;
   let label = "Schooldag";
   if (!inRange) label = "Buiten periode";
   else if (isWeekend) label = "Weekend";
-  else if (isManualFreeDay) label = "Vakantie / vrije dag";
-  return { inRange, isWeekend, isManualFreeDay, isFreeDay, label };
+  else if (isAutoHoliday) label = autoHoliday.label;
+  else if (isManualFreeDay) label = "Vrije dag";
+  return { inRange, isWeekend, isAutoHoliday, isManualFreeDay, isFreeDay, label };
+}
+
+
+function getAutoHoliday(dateId) {
+  return AUTO_HOLIDAYS_NORTH.find(period => dateId >= period.start && dateId <= period.end) || null;
 }
 
 function shiftSelectedDate(delta) {
@@ -787,14 +973,105 @@ function lockParentMode() {
 }
 
 
+
+function openPayoutModal() {
+  const totals = computePeriodTotals(currentSettings());
+  if (totals.balance <= 0) {
+    toast("Geen uit te betalen saldo");
+    return;
+  }
+  if (!els.payoutModal) return;
+  els.payoutError.textContent = "";
+  els.payoutDateInput.value = state.selectedDate;
+  els.payoutAmountInput.value = "";
+  els.payoutDescInput.value = "";
+  els.payoutAgreeNameInput.value = currentSettings().childName;
+  els.payoutAgreeCheck.checked = false;
+  els.payoutModal.classList.remove("hidden");
+  els.payoutModal.setAttribute("aria-hidden", "false");
+  setTimeout(() => els.payoutAmountInput.focus(), 10);
+}
+
+function closePayoutModal() {
+  if (!els.payoutModal) return;
+  els.payoutModal.classList.add("hidden");
+  els.payoutModal.setAttribute("aria-hidden", "true");
+}
+
+async function submitPayout() {
+  const s = currentSettings();
+  const totals = computePeriodTotals(s);
+  const payoutDate = els.payoutDateInput.value || state.selectedDate;
+  const amount = round2(Number(els.payoutAmountInput.value || 0));
+  const description = String(els.payoutDescInput.value || "").trim();
+  const agreedBy = String(els.payoutAgreeNameInput.value || "").trim();
+
+  if (!validDateId(payoutDate)) {
+    els.payoutError.textContent = "Kies een geldige datum";
+    return;
+  }
+  if (amount <= 0) {
+    els.payoutError.textContent = "Vul een bedrag in";
+    return;
+  }
+  if (amount > totals.balance) {
+    els.payoutError.textContent = "Bedrag is hoger dan het saldo";
+    return;
+  }
+  if (!description) {
+    els.payoutError.textContent = "Vul een korte omschrijving in";
+    return;
+  }
+  if (!els.payoutAgreeCheck.checked) {
+    els.payoutError.textContent = "Akkoord ontbreekt";
+    return;
+  }
+  if (!agreedBy || agreedBy.toLowerCase() !== s.childName.trim().toLowerCase()) {
+    els.payoutError.textContent = `Typ exact: ${s.childName}`;
+    return;
+  }
+
+  const payoutId = nextPayoutId();
+  const payload = {
+    payoutId,
+    payoutDate,
+    amount,
+    description,
+    agreedBy,
+    agreedAt: new Date().toISOString(),
+    childNameAtApproval: s.childName,
+    createdAt: state.firebaseEnabled ? serverTimestamp() : new Date().toISOString(),
+    createdBy: state.user?.uid || "local"
+  };
+
+  if (state.firebaseEnabled && state.db && state.authReady) {
+    try {
+      await setDoc(doc(payoutsCollectionRef(), payoutId), payload, { merge: true });
+      setSyncState("Gesynchroniseerd");
+    } catch (err) {
+      console.error(err);
+      els.payoutError.textContent = "Opslaan uitbetaling mislukt";
+      return;
+    }
+  } else {
+    state.payouts.set(payoutId, payload);
+    persistLocalPayouts();
+  }
+
+  closePayoutModal();
+  renderAll();
+}
+
 function exportDataAsJson() {
   const s = currentSettings();
   const ridesObj = Object.fromEntries(Array.from(state.rides.entries()).sort((a,b)=>a[0].localeCompare(b[0])));
+  const payoutsObj = Object.fromEntries(Array.from(state.payouts.entries()).sort((a,b)=>(a[0] < b[0] ? -1 : 1)));
   const payload = {
     exportedAt: new Date().toISOString(),
     app: "fiets-tegoed-firebase",
     settings: s,
-    rides: ridesObj
+    rides: ridesObj,
+    payouts: payoutsObj
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const a = document.createElement("a");
@@ -836,8 +1113,31 @@ async function importDataFromJson(e) {
       }
     }
 
+    const payouts = parsed.payouts || {};
+    for (const [payoutId, payout] of Object.entries(payouts)) {
+      const payoutDate = payout.payoutDate || payout.dateId;
+      if (!validDateId(payoutDate)) continue;
+      const payload = {
+        payoutId,
+        payoutDate,
+        amount: round2(Number(payout.amount || 0)),
+        description: String(payout.description || "").trim(),
+        agreedBy: String(payout.agreedBy || currentSettings().childName).trim() || currentSettings().childName,
+        agreedAt: payout.agreedAt || new Date().toISOString(),
+        childNameAtApproval: String(payout.childNameAtApproval || currentSettings().childName),
+        createdAt: state.firebaseEnabled ? serverTimestamp() : new Date().toISOString(),
+        createdBy: state.user?.uid || "import"
+      };
+      if (state.firebaseEnabled && state.db && state.authReady) {
+        await setDoc(doc(payoutsCollectionRef(), payoutId), payload, { merge: true });
+      } else {
+        state.payouts.set(payoutId, payload);
+      }
+    }
+
     if (!state.firebaseEnabled) {
       localStorage.setItem("fietsTegoed.rides.local", JSON.stringify(Object.fromEntries(state.rides)));
+      persistLocalPayouts();
     }
 
     if (state.firebaseEnabled && state.authReady) {
