@@ -60,7 +60,7 @@ body{
 }
 .header-right-inline{
   display:grid;
-  grid-template-columns:minmax(0,1fr) auto;
+  grid-template-columns:minmax(0,1fr) auto auto;
   gap:8px;
   align-items:center;
   justify-content:space-between;
@@ -75,6 +75,14 @@ body{
 }
 .muted{color:var(--muted)}
 .small{font-size:.83rem}
+.balance-label-inline{
+  color:var(--muted);
+  font-size:.78rem;
+  font-weight:700;
+  letter-spacing:.04em;
+  white-space:nowrap;
+  align-self:center;
+}
 .balance-box{
   min-width:84px;
   text-align:right;
@@ -507,3 +515,12 @@ body{
   }
 }
 
+@media (max-width:560px){
+  .header-right-inline{
+    grid-template-columns:minmax(0,1fr) auto auto;
+    gap:6px;
+  }
+  .balance-label-inline{
+    font-size:.72rem;
+  }
+}
