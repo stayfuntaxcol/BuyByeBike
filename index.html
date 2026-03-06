@@ -10,29 +10,31 @@
 <body>
   <div id="app" class="app">
     <header class="top-card">
-      <div class="top-row top-row-minimal">
-        <div class="header-left">
-          <h1 id="dateTitle" class="hidden">Vandaag</h1>
-          <div id="dateSub" class="muted hidden"></div>
+      <div class="top-headings">
+        <div class="top-heading-left">Datum:</div>
+        <div class="top-heading-right">Tegoed</div>
+      </div>
+
+      <div class="top-row top-row-split">
+        <div class="date-panel" id="datePanel">
+          <button id="prevDayBtn" class="btn ghost nav-btn" type="button">◀</button>
+          <div class="date-picker-wrap" id="datePickerWrap">
+            <button id="dateDisplayBtn" class="date-display" type="button" aria-label="Kies datum">6 maart</button>
+            <input id="dateInput" type="date" class="date-input date-input-overlay" aria-label="Kies datum" />
+          </div>
+          <button id="nextDayBtn" class="btn ghost nav-btn" type="button">▶</button>
         </div>
 
-        <div class="header-right header-right-inline">
-          <div class="top-tools">
-            <button id="prevDayBtn" class="btn ghost nav-btn" type="button">◀</button>
-            <button id="dateDisplayBtn" class="date-display" type="button" aria-label="Kies datum">6 maart</button>
-            <button id="nextDayBtn" class="btn ghost nav-btn" type="button">▶</button>
-            <input id="dateInput" type="date" class="date-input sr-only-date" />
-          </div>
-
-          <div class="balance-label-inline">Tegoed</div>
-
-          <div id="balanceTrigger" class="balance-box" role="button" tabindex="0" title="Tik voor uitbetaling">
+        <div class="balance-wrap">
+          <div id="balanceTrigger" class="balance-box balance-box-plain" role="button" tabindex="0" title="Tik voor uitbetaling">
             <div id="balanceValue" class="balance">€ 0,00</div>
             <div id="dayValue" class="muted small"></div>
           </div>
         </div>
       </div>
 
+      <h1 id="dateTitle" class="hidden">Vandaag</h1>
+      <div id="dateSub" class="muted hidden"></div>
       <div id="dayStatus" class="pill-row hidden"></div>
     </header>
 
@@ -228,3 +230,4 @@
   <script type="module" src="./app.js"></script>
 </body>
 </html>
+
