@@ -55,11 +55,16 @@ body{
 }
 .header-right{
   display:flex;
-  flex-direction:column;
-  align-items:flex-end;
-  gap:8px;
   flex:1;
-  max-width:290px;
+  min-width:0;
+}
+.header-right-inline{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:8px;
+  align-items:stretch;
+  width:100%;
+  max-width:none;
 }
 .eyebrow{
   color:var(--muted);
@@ -70,7 +75,7 @@ body{
 .muted{color:var(--muted)}
 .small{font-size:.83rem}
 .balance-box{
-  width:100%;
+  min-width:150px;
   text-align:right;
   background:rgba(59,130,246,.10);
   border:1px solid rgba(59,130,246,.28);
@@ -93,10 +98,11 @@ body{
 #dateSub:empty,
 #dayValue:empty{display:none}
 .top-tools{
-  width:100%;
+  min-width:0;
   display:grid;
-  grid-template-columns:42px 1fr 42px;
+  grid-template-columns:42px minmax(0,1fr) 42px;
   gap:6px;
+  align-items:stretch;
 }
 .date-input{
   width:100%;
@@ -251,6 +257,16 @@ body{
   padding:8px 10px;
 }
 .recent-date{font-weight:700}
+.recent-desc{
+  margin-top:3px;
+  color:var(--muted);
+  font-size:.84rem;
+  line-height:1.25;
+}
+.recent-amount{
+  font-weight:800;
+  white-space:nowrap;
+}
 .recent-meta{
   display:flex;
   gap:6px;
@@ -399,17 +415,32 @@ body{
     grid-template-columns:1fr;
   }
   .top-row-minimal{
-    align-items:flex-start;
+    align-items:center;
   }
-  .header-right{
-    max-width:none;
+  .header-right,
+  .header-right-inline{
     width:100%;
+    max-width:none;
+  }
+  .header-right-inline{
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:6px;
   }
   .top-tools{
     max-width:none;
+    grid-template-columns:38px minmax(0,1fr) 38px;
+    gap:5px;
+  }
+  .date-input{
+    padding:8px 10px;
+    font-size:15px;
   }
   .balance-box{
-    width:100%;
+    min-width:128px;
+    padding:8px 9px;
+  }
+  .balance{
+    font-size:1.05rem;
   }
   .recent-item{
     flex-direction:column;
