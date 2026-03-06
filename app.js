@@ -159,7 +159,7 @@ async function init() {
 
 function cacheEls() {
   [
-    "dateTitle","dateSub","balanceValue","dayValue","dateInput","dateDisplayBtn","prevDayBtn","nextDayBtn","dayStatus","quickButtons",
+    "dateTitle","dateSub","balanceValue","dayValue","dateInput","dateDisplayBtn","datePanel","datePickerWrap","prevDayBtn","nextDayBtn","dayStatus","quickButtons",
     "outboundButtons","inboundButtons","markVrijBtn","markSickBtn","copyLinkBtn",
     "statBikeRides","statFullBikeDays","statBusRides","statCarRides","statCarpoolRides","statFamilyCost",
     "scenarioDays","scenarioExtra","scenarioTotal","recentList","syncState",
@@ -192,6 +192,15 @@ function wireStaticUI() {
     }
   });
   els.dateDisplayBtn?.addEventListener("click", openDatePicker);
+  els.datePickerWrap?.addEventListener("click", (e) => {
+    if (e.target?.closest?.("#prevDayBtn, #nextDayBtn")) return;
+    openDatePicker();
+  });
+  els.datePanel?.addEventListener("click", (e) => {
+    if (e.target?.closest?.("#prevDayBtn, #nextDayBtn, #dateInput")) return;
+    if (e.target?.closest?.("#dateDisplayBtn, #datePickerWrap")) return;
+    openDatePicker();
+  });
 
   els.balanceTrigger?.addEventListener("click", openPayoutModal);
   els.balanceTrigger?.addEventListener("keydown", (e) => {
@@ -996,12 +1005,16 @@ function openDatePicker() {
   const input = els.dateInput;
   if (!input) return;
   try {
+    input.focus({ preventScroll: true });
+  } catch {
+    try { input.focus(); } catch {}
+  }
+  try {
     if (typeof input.showPicker === "function") {
       input.showPicker();
       return;
     }
   } catch {}
-  input.focus();
   input.click();
 }
 
