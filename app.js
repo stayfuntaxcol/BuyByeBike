@@ -34,7 +34,7 @@ const firebaseConfig = {
 const DEFAULTS = {
   version: 1,
   childName: "Larah Fae",
-  familyId: "larah-fae-" + randomToken(8),
+  familyId: "larah-fae-mvt6umwe",
   childId: "larah-fae",
   parentPin: "1976",
   startDate: "2026-03-02",
@@ -69,6 +69,17 @@ const CHOICES_INBOUND = [
   { key: "carpool", label: "🚗 Carpool", sub: "€0" },
   { key: "na", label: "⛔ Vrij", sub: "n.v.t." }
 ];
+const QUICK_PRESETS = [
+  { id: "bike_bike", label: "🚲🚲 Fiets heen + terug", outbound: "bike", inbound: "bike" },
+  { id: "car_bike",  label: "🚗🚲 Gebracht + terug fiets", outbound: "car_drop", inbound: "bike" },
+  { id: "bike_car",  label: "🚲🚗 Heen fiets + gehaald", outbound: "bike", inbound: "car_pickup" },
+  { id: "car_car",   label: "🚗🚗 Gebracht + gehaald", outbound: "car_drop", inbound: "car_pickup" },
+  { id: "bus_bus",   label: "🚌🚌 Bus heen + terug", outbound: "bus", inbound: "bus" },
+  { id: "pool_pool", label: "🚗🚗 Carpool heen + terug", outbound: "carpool", inbound: "carpool" },
+  { id: "free",      label: "⛔⛔ Vrij", outbound: "na", inbound: "na" }
+];
+
+
 
 
 const state = {
@@ -91,6 +102,7 @@ async function init() {
   cacheEls();
   wireStaticUI();
   renderChoiceButtons();
+  renderQuickButtons();
   loadLocalFallbackSettings();
   loadLocalFallbackRides();
   applySettingsToForm();
@@ -123,7 +135,7 @@ async function init() {
 
 function cacheEls() {
   [
-    "dateTitle","dateSub","balanceValue","dayValue","dateInput","prevDayBtn","nextDayBtn","dayStatus",
+    "dateTitle","dateSub","balanceValue","dayValue","dateInput","prevDayBtn","nextDayBtn","dayStatus","quickButtons",
     "outboundButtons","inboundButtons","markVrijBtn","copyLinkBtn",
     "statBikeRides","statFullBikeDays","statBusRides","statCarRides","statCarpoolRides","statFamilyCost",
     "scenarioDays","scenarioExtra","scenarioTotal","recentList","syncState",
@@ -192,6 +204,29 @@ function renderChoiceButtons() {
   });
 }
 
+function renderQuickButtons() {
+  if (!els.quickButtons) return;
+  els.quickButtons.innerHTML = "";
+
+  const s = currentSettings();
+  QUICK_PRESETS.forEach(p => {
+    const computed = computeDayTotals({ outbound: p.outbound, inbound: p.inbound }, s);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn quick-btn";
+    btn.dataset.preset = p.id;
+    btn.innerHTML = `
+      <div>
+        <div class="label">${escapeHtml(p.label)}</div>
+        <div class="hint">${escapeHtml(formatEUR(computed.total))}</div>
+      </div>
+      <div class="muted small">Tik = opslaan</div>
+    `;
+    btn.addEventListener("click", () => saveRideForSelectedDate({ outbound: p.outbound, inbound: p.inbound }));
+    els.quickButtons.appendChild(btn);
+  });
+}
+
 
 function currentSettings() {
   return state.settings || structuredClone(DEFAULTS);
@@ -221,7 +256,16 @@ function loadLocalFallbackSettings() {
       if (qFamily) defaults.familyId = slugify(qFamily);
       state.settings = sanitizeSettings(defaults);
     }
-  } catch {
+    // URL overrides (handig voor gedeelde links / PWA start_url)
+    const params2 = new URLSearchParams(location.search);
+    const qFamily2 = params2.get("family");
+    const qChild2 = params2.get("child");
+    if (qFamily2) state.settings.familyId = slugify(qFamily2);
+    if (qChild2) state.settings.childId = slugify(qChild2);
+    state.settings = sanitizeSettings(state.settings);
+    persistLocalSettings(state.settings);
+  }
+  catch {
     state.settings = structuredClone(DEFAULTS);
   }
   state.selectedDate = todayLocalDateString();
@@ -290,7 +334,7 @@ function startFirestoreListeners() {
     setSyncState("Fout bij sync ritten");
   });
 
-  setSyncState("Sync actief");
+  setSyncState(`Sync actief • ${s.familyId}/${s.childId}`);
 }
 
 function serializeSettingsForFirestore(s) {
@@ -361,7 +405,9 @@ function applySettingsToForm() {
   els.rateCarInput.value = Math.abs(s.rates.car);
   els.rateCarpoolInput.value = s.rates.carpool;
   els.freeDaysTextarea.value = (s.freeDays || []).join("\n");
+  renderQuickButtons();
 }
+
 
 function collectSettingsFromForm() {
   const freeDays = els.freeDaysTextarea.value
