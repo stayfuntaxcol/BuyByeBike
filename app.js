@@ -151,8 +151,9 @@ async function init() {
   } catch (err) {
     console.error(err);
     state.firebaseEnabled = false;
-    setSyncState("Firebase niet ingesteld — lokale modus");
-    toast("Firebase config nog niet ingevuld. App werkt nu lokaal.");
+    const fb = explainFirebaseError(err);
+    setSyncState(fb.short);
+    toast(fb.toast);
   }
 }
 
@@ -458,7 +459,8 @@ function startFirestoreListeners() {
     }
   }, (err) => {
     console.error("Settings snapshot error", err);
-    setSyncState("Fout bij sync instellingen");
+    const fb = explainFirebaseError(err);
+    setSyncState(`Instellingen: ${fb.short}`);
   });
 
   const ridesCol = collection(state.db, "families", s.familyId, "children", s.childId, "rides");
@@ -472,7 +474,8 @@ function startFirestoreListeners() {
     renderAll();
   }, (err) => {
     console.error("Rides snapshot error", err);
-    setSyncState("Fout bij sync ritten");
+    const fb = explainFirebaseError(err);
+    setSyncState(`Ritten: ${fb.short}`);
   });
 
   const payoutsCol = collection(state.db, "families", s.familyId, "children", s.childId, "payouts");
@@ -486,7 +489,8 @@ function startFirestoreListeners() {
     renderAll();
   }, (err) => {
     console.error("Payouts snapshot error", err);
-    setSyncState("Fout bij sync uitbetalingen");
+    const fb = explainFirebaseError(err);
+    setSyncState(`Uitbetalingen: ${fb.short}`);
   });
 
   setSyncState(`Sync actief • ${s.familyId}/${s.childId}`);
@@ -683,8 +687,9 @@ async function saveRideForSelectedDate({ outbound, inbound }) {
       setSyncState("Gesynchroniseerd");
     } catch (err) {
       console.error(err);
-      toast("Opslaan in Firebase mislukt");
-      setSyncState("Opslaan mislukt");
+      const fb = explainFirebaseError(err);
+      toast(fb.toast);
+      setSyncState(`Opslaan mislukt • ${fb.short}`);
     }
   } else {
     // lokale fallback
@@ -735,7 +740,7 @@ function renderAll() {
   const ride = getRideForDate(selected);
 
   const d = parseDateLocal(selected);
-  els.dateTitle.textContent = formatLongDateNL(d);
+  if (els.dateTitle) els.dateTitle.textContent = formatLongDateNL(d);
   if (els.dateSub) els.dateSub.textContent = "";
   if (els.dayValue) els.dayValue.textContent = "";
   if (els.dayStatus) els.dayStatus.innerHTML = "";
@@ -1161,7 +1166,47 @@ function toast(msg) {
   els.toast.textContent = msg;
   els.toast.classList.remove("hidden");
   clearTimeout(toast._t);
-  toast._t = setTimeout(() => els.toast.classList.add("hidden"), 1800);
+  toast._t = setTimeout(() => els.toast.classList.add("hidden"), 2400);
+}
+
+function explainFirebaseError(err) {
+  const code = String(err?.code || "");
+  const message = String(err?.message || "");
+
+  if (code.includes("auth/operation-not-allowed")) {
+    return {
+      short: "Anonymous auth uit",
+      toast: "Firebase: zet Anonymous sign-in aan."
+    };
+  }
+  if (code.includes("auth/unauthorized-domain")) {
+    return {
+      short: "Domein niet toegestaan",
+      toast: "Firebase: voeg dit domein toe bij Authorized domains."
+    };
+  }
+  if (code.includes("permission-denied")) {
+    return {
+      short: "Geen Firestore toegang",
+      toast: "Firebase: Firestore rules blokkeren deze app."
+    };
+  }
+  if (code.includes("unauthenticated")) {
+    return {
+      short: "Niet ingelogd",
+      toast: "Firebase: anonieme login is niet gelukt."
+    };
+  }
+  if (/config/i.test(message)) {
+    return {
+      short: "Config fout",
+      toast: "Firebase config klopt niet of is onvolledig."
+    };
+  }
+  return {
+    short: "Lokale modus",
+    toast: code ? `Firebase fout: ${code}` : "Firebase niet beschikbaar, app draait lokaal."
+  };
 }
 
 // Helpers
