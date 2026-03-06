@@ -159,7 +159,7 @@ async function init() {
 
 function cacheEls() {
   [
-    "dateTitle","dateSub","balanceValue","dayValue","dateInput","prevDayBtn","nextDayBtn","dayStatus","quickButtons",
+    "dateTitle","dateSub","balanceValue","dayValue","dateInput","dateDisplayBtn","prevDayBtn","nextDayBtn","dayStatus","quickButtons",
     "outboundButtons","inboundButtons","markVrijBtn","markSickBtn","copyLinkBtn",
     "statBikeRides","statFullBikeDays","statBusRides","statCarRides","statCarpoolRides","statFamilyCost",
     "scenarioDays","scenarioExtra","scenarioTotal","recentList","syncState",
@@ -191,6 +191,7 @@ function wireStaticUI() {
       renderAll();
     }
   });
+  els.dateDisplayBtn?.addEventListener("click", openDatePicker);
 
   els.balanceTrigger?.addEventListener("click", openPayoutModal);
   els.balanceTrigger?.addEventListener("keydown", (e) => {
@@ -740,7 +741,9 @@ function renderAll() {
   const ride = getRideForDate(selected);
 
   const d = parseDateLocal(selected);
-  if (els.dateTitle) els.dateTitle.textContent = formatLongDateNL(d);
+  const dateLabel = formatLongDateNL(d);
+  if (els.dateTitle) els.dateTitle.textContent = dateLabel;
+  if (els.dateDisplayBtn) els.dateDisplayBtn.textContent = dateLabel;
   if (els.dateSub) els.dateSub.textContent = "";
   if (els.dayValue) els.dayValue.textContent = "";
   if (els.dayStatus) els.dayStatus.innerHTML = "";
@@ -987,6 +990,19 @@ function shiftSelectedDate(delta) {
   d.setDate(d.getDate() + delta);
   state.selectedDate = formatDateIdLocal(d);
   renderAll();
+}
+
+function openDatePicker() {
+  const input = els.dateInput;
+  if (!input) return;
+  try {
+    if (typeof input.showPicker === "function") {
+      input.showPicker();
+      return;
+    }
+  } catch {}
+  input.focus();
+  input.click();
 }
 
 function openPinModal() {
