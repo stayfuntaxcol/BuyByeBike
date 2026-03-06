@@ -16,9 +16,10 @@
           <h1 id="dateTitle">Vandaag</h1>
           <div id="dateSub" class="muted"></div>
         </div>
-        <div class="balance-box">
+        <div id="balanceTrigger" class="balance-box" role="button" tabindex="0" title="Tik voor uitbetaling" style="cursor:pointer;">
           <div class="eyebrow">Tegoed</div>
           <div id="balanceValue" class="balance">€ 0,00</div>
+          <div id="dayValue" class="muted small"></div>
         </div>
       </div>
 
@@ -93,6 +94,12 @@
       <div id="recentList" class="recent-list"></div>
     </section>
 
+    <section class="log-card">
+      <div class="section-title">Uitbetalingen</div>
+      <div id="paidOutValue" class="muted small">Totaal uitbetaald: € 0,00</div>
+      <div id="payoutList" class="recent-list"></div>
+    </section>
+
     <section id="settingsCard" class="settings-card hidden">
       <div class="row between">
         <div class="section-title no-margin">Oudermodus</div>
@@ -142,7 +149,7 @@
         </label>
       </div>
 
-      <div class="subsection-title">Vrije dagen (één datum per regel, YYYY-MM-DD)</div>
+      <div class="subsection-title">Extra vrije dagen (één datum per regel, YYYY-MM-DD)</div>
       <label>
         <textarea id="freeDaysTextarea" rows="6" placeholder="2026-04-27&#10;2026-05-05"></textarea>
       </label>
@@ -155,9 +162,6 @@
           ⬆️ Import JSON
           <input id="importJsonInput" type="file" accept=".json,application/json" />
         </label>
-      </div>
-      <div class="muted small">
-        Let op: zonder Google-login is dit handig maar niet waterdicht beveiligd. Anonieme Firebase-login + verborgen familie-link geeft basisbescherming.
       </div>
     </section>
 
@@ -179,6 +183,40 @@
         <button id="pinSubmitBtn" class="btn primary" type="button">Openen</button>
       </div>
       <div id="pinError" class="error-text"></div>
+    </div>
+  </div>
+
+  <div id="payoutModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-card">
+      <div class="section-title no-margin">Uitbetaling</div>
+      <div class="muted">Voer een bedrag in en laat Larah Fae akkoord geven.</div>
+
+      <label>
+        Datum
+        <input id="payoutDateInput" type="date" />
+      </label>
+      <label>
+        Bedrag
+        <input id="payoutAmountInput" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="0,00" />
+      </label>
+      <label>
+        Omschrijving
+        <input id="payoutDescInput" type="text" maxlength="80" placeholder="bijvoorbeeld nieuwe game" />
+      </label>
+      <label>
+        Akkoord naam
+        <input id="payoutAgreeNameInput" type="text" maxlength="80" placeholder="Larah Fae" />
+      </label>
+      <label class="row" style="gap:10px; align-items:center; margin-top:10px;">
+        <input id="payoutAgreeCheck" type="checkbox" />
+        <span>Larah Fae gaat akkoord met deze uitbetaling</span>
+      </label>
+
+      <div class="row actions-row">
+        <button id="payoutCancelBtn" class="btn ghost" type="button">Annuleren</button>
+        <button id="payoutSubmitBtn" class="btn primary" type="button">Uitbetalen</button>
+      </div>
+      <div id="payoutError" class="error-text"></div>
     </div>
   </div>
 
