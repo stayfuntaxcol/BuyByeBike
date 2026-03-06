@@ -815,6 +815,50 @@ function renderRecentList(s) {
   }).join("");
 }
 
+function renderPayoutList(s) {
+  if (!els.payoutList) return;
+
+  const items = Array.from(state.payouts.values())
+    .filter(p => {
+      const dateId = p.payoutDate || p.dateId;
+      return validDateId(dateId) && dateId >= s.startDate && dateId <= s.endDate;
+    })
+    .sort((a, b) => {
+      const da = a.payoutDate || a.dateId || "";
+      const db = b.payoutDate || b.dateId || "";
+      if (da !== db) return da < db ? 1 : -1;
+      const ta = String(a.agreedAt || a.createdAt || "");
+      const tb = String(b.agreedAt || b.createdAt || "");
+      return ta < tb ? 1 : -1;
+    })
+    .slice(0, 20);
+
+  if (!items.length) {
+    els.payoutList.innerHTML = `<div class="muted small">Nog geen uitbetalingen.</div>`;
+    return;
+  }
+
+  els.payoutList.innerHTML = items.map(item => {
+    const dateId = item.payoutDate || item.dateId;
+    const dateStr = formatShortDateNL(parseDateLocal(dateId));
+    const description = escapeHtml(item.description || "Uitbetaling");
+    const agreedBy = escapeHtml(item.agreedBy || currentSettings().childName || "");
+    return `
+      <div class="recent-item">
+        <div>
+          <div class="recent-date">${dateStr}</div>
+          <div class="recent-desc">${description}</div>
+        </div>
+        <div class="recent-meta">
+          <span class="tag">${agreedBy}</span>
+          <span class="tag recent-amount">-${formatEUR(item.amount ?? 0)}</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+
 function computeDayTotals(ride, s) {
   const rates = s.rates || DEFAULTS.rates;
   const outbound = ride?.outbound || "na";
