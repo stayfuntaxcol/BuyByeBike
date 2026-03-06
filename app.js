@@ -59,7 +59,8 @@ const CHOICES_OUTBOUND = [
   { key: "bus", label: "🚌 Bus", sub: "-€5" },
   { key: "car_drop", label: "🚗 Gebracht", sub: "-€2,50" },
   { key: "carpool", label: "🚗 Carpool", sub: "€0" },
-  { key: "na", label: "⛔ Vrij", sub: "n.v.t." }
+  { key: "sick", label: "🤒 Ziek", sub: "" },
+  { key: "na", label: "⛔ Vrij", sub: "" }
 ];
 
 const CHOICES_INBOUND = [
@@ -67,7 +68,8 @@ const CHOICES_INBOUND = [
   { key: "bus", label: "🚌 Bus", sub: "-€5" },
   { key: "car_pickup", label: "🚗 Gehaald", sub: "-€2,50" },
   { key: "carpool", label: "🚗 Carpool", sub: "€0" },
-  { key: "na", label: "⛔ Vrij", sub: "n.v.t." }
+  { key: "sick", label: "🤒 Ziek", sub: "" },
+  { key: "na", label: "⛔ Vrij", sub: "" }
 ];
 const QUICK_PRESETS = [
   { id: "bike_bike", label: "🚲🚲 Fiets heen + terug", outbound: "bike", inbound: "bike" },
@@ -136,7 +138,7 @@ async function init() {
 function cacheEls() {
   [
     "dateTitle","dateSub","balanceValue","dayValue","dateInput","prevDayBtn","nextDayBtn","dayStatus","quickButtons",
-    "outboundButtons","inboundButtons","markVrijBtn","markSickBtn","copyLinkBtn",
+    "outboundButtons","inboundButtons","markVrijBtn","copyLinkBtn",
     "statBikeRides","statFullBikeDays","statBusRides","statCarRides","statCarpoolRides","statFamilyCost",
     "scenarioDays","scenarioExtra","scenarioTotal","recentList","syncState",
     "settingsCard","parentModeBtn","openParentModeBtn","closeSettingsBtn",
@@ -159,9 +161,6 @@ function wireStaticUI() {
     }
   });
 
-  els.markVrijBtn.addEventListener("click", () => saveRideForSelectedDate({ outbound: "na", inbound: "na", dayType: "free" }));
-  els.markSickBtn?.addEventListener("click", () => saveRideForSelectedDate({ outbound: "na", inbound: "na", dayType: "sick" }));
-  els.copyLinkBtn.addEventListener("click", copyShareLink);
 
   els.parentModeBtn.addEventListener("click", () => openPinModal());
   els.openParentModeBtn.addEventListener("click", () => lockParentMode());
@@ -188,7 +187,7 @@ function renderChoiceButtons() {
     btn.className = "btn choice-btn";
     btn.dataset.choice = choice.key;
     btn.dataset.route = "outbound";
-    btn.innerHTML = `${choice.label}<span class="sub">${choice.sub}</span>`;
+    btn.innerHTML = choice.sub ? `${choice.label}<span class="sub">${choice.sub}</span>` : `${choice.label}`;
     btn.addEventListener("click", () => applySingleChoice("outbound", choice.key));
     els.outboundButtons.appendChild(btn);
   });
@@ -199,7 +198,7 @@ function renderChoiceButtons() {
     btn.className = "btn choice-btn";
     btn.dataset.choice = choice.key;
     btn.dataset.route = "inbound";
-    btn.innerHTML = `${choice.label}<span class="sub">${choice.sub}</span>`;
+    btn.innerHTML = choice.sub ? `${choice.label}<span class="sub">${choice.sub}</span>` : `${choice.label}`;
     btn.addEventListener("click", () => applySingleChoice("inbound", choice.key));
     els.inboundButtons.appendChild(btn);
   });
@@ -449,9 +448,9 @@ async function saveSettingsFromForm() {
       await setDoc(familyRef, { familyId: next.familyId, updatedAt: serverTimestamp() }, { merge: true });
       await setDoc(settingsRef, serializeSettingsForFirestore(next), { merge: true });
       await setDoc(childRef, { childId: next.childId, name: next.childName, active: true, updatedAt: serverTimestamp() }, { merge: true });
-      toast("Instellingen aangepast");
+      toast("Instellingen opgeslagen");
     } else {
-      toast("Instellingen aangepast");
+      toast("Instellingen lokaal opgeslagen");
     }
 
     if (familyChanged) {
@@ -475,7 +474,7 @@ function rideRefForDate(dateId) {
   return doc(state.db, "families", s.familyId, "children", s.childId, "rides", dateId);
 }
 
-async function saveRideForSelectedDate({ outbound, inbound, dayType = "normal" }) {
+async function saveRideForSelectedDate({ outbound, inbound }) {
   const dateId = state.selectedDate;
   const s = currentSettings();
   const schoolInfo = classifyDate(dateId, s);
@@ -486,14 +485,17 @@ async function saveRideForSelectedDate({ outbound, inbound, dayType = "normal" }
   }
 
   const computed = computeDayTotals({ outbound, inbound }, s);
+  if (outbound === "sick" || inbound === "sick") {
+    outbound = "sick";
+    inbound = "sick";
+  }
+
   const payload = {
     dateId,
     date: dateId,
     outbound,
     inbound,
-    dayType,
-    isSick: dayType === "sick",
-    isFreeDay: dayType === "sick" ? true : schoolInfo.isFreeDay,
+    isFreeDay: schoolInfo.isFreeDay,
     weekday: weekdayIndex(dateId),
     total: computed.total,
     familyCost: computed.familyCost,
@@ -529,8 +531,18 @@ async function saveRideForSelectedDate({ outbound, inbound, dayType = "normal" }
 
 async function applySingleChoice(route, choiceKey) {
   const existing = getRideForDate(state.selectedDate);
-  const outbound = route === "outbound" ? choiceKey : (existing?.outbound || "na");
-  const inbound = route === "inbound" ? choiceKey : (existing?.inbound || "na");
+
+  if (choiceKey === "sick") {
+    await saveRideForSelectedDate({ outbound: "sick", inbound: "sick" });
+    return;
+  }
+
+  let outbound = route === "outbound" ? choiceKey : (existing?.outbound || "na");
+  let inbound = route === "inbound" ? choiceKey : (existing?.inbound || "na");
+
+  if (outbound === "sick") outbound = "na";
+  if (inbound === "sick") inbound = "na";
+
   await saveRideForSelectedDate({ outbound, inbound });
 }
 
@@ -559,18 +571,12 @@ function renderAll() {
   // top info
   const d = parseDateLocal(selected);
   els.dateTitle.textContent = formatLongDateNL(d);
-  els.dateSub.textContent = "";
-  els.dayValue.textContent = `Vandaag: ${formatEUR(ride?.total ?? 0)}`;
+  if (els.dateSub) els.dateSub.textContent = "";
+  if (els.dayValue) els.dayValue.textContent = "";
+  if (els.dayStatus) els.dayStatus.innerHTML = "";
 
-  // status pills
-  const pills = [];
-  if (!info.inRange) pills.push(pillHtml("bad", "Buiten periode"));
-  els.dayStatus.innerHTML = pills.join("");
-
-  // Enable/disable quick buttons outside range
+  // Enable/disable choices outside range
   const disabledForRange = !info.inRange;
-  els.markVrijBtn.disabled = disabledForRange;
-  if (els.markSickBtn) els.markSickBtn.disabled = disabledForRange;
   [...els.outboundButtons.querySelectorAll("button"), ...els.inboundButtons.querySelectorAll("button")].forEach(btn => btn.disabled = disabledForRange);
 
   highlightChoiceButtons(ride);
@@ -596,22 +602,12 @@ function renderAll() {
 function highlightChoiceButtons(ride) {
   const outbound = ride?.outbound;
   const inbound = ride?.inbound;
-  const dayType = ride?.dayType || "normal";
-
   els.outboundButtons.querySelectorAll("button").forEach(btn => {
-    btn.classList.toggle("active", dayType !== "sick" && btn.dataset.choice === outbound);
+    btn.classList.toggle("active", btn.dataset.choice === outbound);
   });
   els.inboundButtons.querySelectorAll("button").forEach(btn => {
-    btn.classList.toggle("active", dayType !== "sick" && btn.dataset.choice === inbound);
+    btn.classList.toggle("active", btn.dataset.choice === inbound);
   });
-
-  if (els.markVrijBtn) {
-    const isVrij = dayType !== "sick" && outbound === "na" && inbound === "na";
-    els.markVrijBtn.classList.toggle("active", isVrij);
-  }
-  if (els.markSickBtn) {
-    els.markSickBtn.classList.toggle("active", dayType === "sick");
-  }
 }
 
 function renderRecentList(s) {
@@ -627,18 +623,16 @@ function renderRecentList(s) {
 
   els.recentList.innerHTML = items.map(item => {
     const dateStr = formatShortDateNL(parseDateLocal(item.dateId));
-    const tags = item.dayType === "sick"
-      ? [formatEUR(item.total ?? 0)]
-      : [
-          choiceLabel("outbound", item.outbound),
-          choiceLabel("inbound", item.inbound),
-          formatEUR(item.total ?? 0)
-        ];
+    const tags = [
+      choiceLabel("outbound", item.outbound),
+      choiceLabel("inbound", item.inbound),
+      formatEUR(item.total ?? 0)
+    ].filter(Boolean);
     return `
       <div class="recent-item">
         <div>
           <div class="recent-date">${dateStr}</div>
-          <div class="muted small">${item.dateId}</div>
+          
         </div>
         <div class="recent-meta">
           ${tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join("")}
@@ -677,7 +671,7 @@ function computeDayTotals(ride, s) {
       total += rates.carpool;
       if (rates.carpool < 0) familyCost += Math.abs(rates.carpool);
       carpoolRides++;
-    } else if (k === "na") {
+    } else if (k === "sick" || k === "na") {
       // no-op
     }
   }
@@ -792,17 +786,6 @@ function lockParentMode() {
   toast("Oudermodus vergrendeld");
 }
 
-async function copyShareLink() {
-  const s = currentSettings();
-  const url = new URL(location.href);
-  url.searchParams.set("family", s.familyId);
-  try {
-    await navigator.clipboard.writeText(url.toString());
-    toast("Link gekopieerd");
-  } catch {
-    toast("Kopiëren mislukt");
-  }
-}
 
 function exportDataAsJson() {
   const s = currentSettings();
@@ -841,10 +824,8 @@ async function importDataFromJson(e) {
         date: dateId,
         outbound: validChoice(ride.outbound) ? ride.outbound : "na",
         inbound: validChoice(ride.inbound) ? ride.inbound : "na",
-        dayType: ride?.dayType === "sick" ? "sick" : (ride?.dayType === "free" ? "free" : "normal"),
-        isSick: ride?.dayType === "sick" || ride?.isSick === true,
         weekday: weekdayIndex(dateId),
-        ...computeDayTotals({ outbound: validChoice(ride.outbound) ? ride.outbound : "na", inbound: validChoice(ride.inbound) ? ride.inbound : "na" }, currentSettings()),
+        ...computeDayTotals(ride, currentSettings()),
         updatedAt: state.firebaseEnabled ? serverTimestamp() : new Date().toISOString(),
         updatedBy: state.user?.uid || "import"
       };
@@ -888,6 +869,7 @@ function pillHtml(type, text) {
   return `<span class="pill ${type}">${escapeHtml(text)}</span>`;
 }
 function choiceLabel(route, key) {
+  if (key === "sick") return "";
   const list = route === "outbound" ? CHOICES_OUTBOUND : CHOICES_INBOUND;
   return list.find(x => x.key === key)?.label || key;
 }
@@ -963,6 +945,5 @@ function escapeHtml(s) {
     .replace(/"/g, "&quot;");
 }
 function validChoice(k) {
-  return ["bike","bus","car_drop","car_pickup","carpool","na"].includes(String(k));
+  return ["bike","bus","car_drop","car_pickup","carpool","sick","na"].includes(String(k));
 }
-
