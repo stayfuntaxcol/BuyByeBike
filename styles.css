@@ -93,7 +93,8 @@ body{
 .balance-box:active{transform:scale(.985)}
 .balance{
   font-weight:800;
-  font-size:1.04rem;
+  font-size:.92rem;
+  line-height:1.1;
 }
 #dateSub:empty,
 #dayValue:empty{display:none}
@@ -436,11 +437,12 @@ body{
     font-size:15px;
   }
   .balance-box{
-    min-width:128px;
-    padding:8px 9px;
+    min-width:78px;
+    max-width:96px;
+    padding:4px 6px;
   }
   .balance{
-    font-size:1.05rem;
+    font-size:.9rem;
   }
   .recent-item{
     flex-direction:column;
@@ -451,3 +453,4 @@ body{
     flex-wrap:wrap;
   }
 }
+
