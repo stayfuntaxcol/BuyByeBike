@@ -136,7 +136,7 @@ async function init() {
 function cacheEls() {
   [
     "dateTitle","dateSub","balanceValue","dayValue","dateInput","prevDayBtn","nextDayBtn","dayStatus","quickButtons",
-    "outboundButtons","inboundButtons","markVrijBtn","copyLinkBtn",
+    "outboundButtons","inboundButtons","markVrijBtn","markSickBtn","copyLinkBtn",
     "statBikeRides","statFullBikeDays","statBusRides","statCarRides","statCarpoolRides","statFamilyCost",
     "scenarioDays","scenarioExtra","scenarioTotal","recentList","syncState",
     "settingsCard","parentModeBtn","openParentModeBtn","closeSettingsBtn",
@@ -159,7 +159,8 @@ function wireStaticUI() {
     }
   });
 
-  els.markVrijBtn.addEventListener("click", () => saveRideForSelectedDate({ outbound: "na", inbound: "na" }));
+  els.markVrijBtn.addEventListener("click", () => saveRideForSelectedDate({ outbound: "na", inbound: "na", dayType: "free" }));
+  els.markSickBtn?.addEventListener("click", () => saveRideForSelectedDate({ outbound: "na", inbound: "na", dayType: "sick" }));
   els.copyLinkBtn.addEventListener("click", copyShareLink);
 
   els.parentModeBtn.addEventListener("click", () => openPinModal());
@@ -448,9 +449,9 @@ async function saveSettingsFromForm() {
       await setDoc(familyRef, { familyId: next.familyId, updatedAt: serverTimestamp() }, { merge: true });
       await setDoc(settingsRef, serializeSettingsForFirestore(next), { merge: true });
       await setDoc(childRef, { childId: next.childId, name: next.childName, active: true, updatedAt: serverTimestamp() }, { merge: true });
-      toast("Instellingen opgeslagen");
+      toast("Instellingen aangepast");
     } else {
-      toast("Instellingen lokaal opgeslagen");
+      toast("Instellingen aangepast");
     }
 
     if (familyChanged) {
@@ -474,7 +475,7 @@ function rideRefForDate(dateId) {
   return doc(state.db, "families", s.familyId, "children", s.childId, "rides", dateId);
 }
 
-async function saveRideForSelectedDate({ outbound, inbound }) {
+async function saveRideForSelectedDate({ outbound, inbound, dayType = "normal" }) {
   const dateId = state.selectedDate;
   const s = currentSettings();
   const schoolInfo = classifyDate(dateId, s);
@@ -490,7 +491,9 @@ async function saveRideForSelectedDate({ outbound, inbound }) {
     date: dateId,
     outbound,
     inbound,
-    isFreeDay: schoolInfo.isFreeDay,
+    dayType,
+    isSick: dayType === "sick",
+    isFreeDay: dayType === "sick" ? true : schoolInfo.isFreeDay,
     weekday: weekdayIndex(dateId),
     total: computed.total,
     familyCost: computed.familyCost,
@@ -506,7 +509,6 @@ async function saveRideForSelectedDate({ outbound, inbound }) {
     try {
       await setDoc(rideRefForDate(dateId), payload, { merge: true });
       setSyncState("Gesynchroniseerd");
-      toast("Opgeslagen");
     } catch (err) {
       console.error(err);
       toast("Opslaan in Firebase mislukt");
@@ -522,7 +524,6 @@ async function saveRideForSelectedDate({ outbound, inbound }) {
     localStorage.setItem("fietsTegoed.rides.local", JSON.stringify(local));
     state.rides.set(dateId, local[dateId]);
     renderAll();
-    toast("Lokaal opgeslagen");
   }
 }
 
@@ -558,21 +559,18 @@ function renderAll() {
   // top info
   const d = parseDateLocal(selected);
   els.dateTitle.textContent = formatLongDateNL(d);
-  els.dateSub.textContent = `Dag van invoer • ${info.label}`;
+  els.dateSub.textContent = "";
   els.dayValue.textContent = `Vandaag: ${formatEUR(ride?.total ?? 0)}`;
 
   // status pills
   const pills = [];
-  pills.push(pillHtml("info", `Periode: ${s.startDate} t/m ${s.endDate}`));
   if (!info.inRange) pills.push(pillHtml("bad", "Buiten periode"));
-  else if (info.isWeekend) pills.push(pillHtml("warn", "Weekend (vrij)"));
-  else if (info.isManualFreeDay) pills.push(pillHtml("warn", "Vakantie / vrije dag"));
-  else pills.push(pillHtml("good", "Schooldag"));
-  if (ride) pills.push(pillHtml(ride.total >= 0 ? "good" : "bad", `Opgeslagen: ${formatEUR(ride.total)}`));
   els.dayStatus.innerHTML = pills.join("");
 
   // Enable/disable quick buttons outside range
-  const disabledForRange = !info.inRange;  els.markVrijBtn.disabled = disabledForRange;
+  const disabledForRange = !info.inRange;
+  els.markVrijBtn.disabled = disabledForRange;
+  if (els.markSickBtn) els.markSickBtn.disabled = disabledForRange;
   [...els.outboundButtons.querySelectorAll("button"), ...els.inboundButtons.querySelectorAll("button")].forEach(btn => btn.disabled = disabledForRange);
 
   highlightChoiceButtons(ride);
@@ -598,12 +596,22 @@ function renderAll() {
 function highlightChoiceButtons(ride) {
   const outbound = ride?.outbound;
   const inbound = ride?.inbound;
+  const dayType = ride?.dayType || "normal";
+
   els.outboundButtons.querySelectorAll("button").forEach(btn => {
-    btn.classList.toggle("active", btn.dataset.choice === outbound);
+    btn.classList.toggle("active", dayType !== "sick" && btn.dataset.choice === outbound);
   });
   els.inboundButtons.querySelectorAll("button").forEach(btn => {
-    btn.classList.toggle("active", btn.dataset.choice === inbound);
+    btn.classList.toggle("active", dayType !== "sick" && btn.dataset.choice === inbound);
   });
+
+  if (els.markVrijBtn) {
+    const isVrij = dayType !== "sick" && outbound === "na" && inbound === "na";
+    els.markVrijBtn.classList.toggle("active", isVrij);
+  }
+  if (els.markSickBtn) {
+    els.markSickBtn.classList.toggle("active", dayType === "sick");
+  }
 }
 
 function renderRecentList(s) {
@@ -619,11 +627,13 @@ function renderRecentList(s) {
 
   els.recentList.innerHTML = items.map(item => {
     const dateStr = formatShortDateNL(parseDateLocal(item.dateId));
-    const tags = [
-      choiceLabel("outbound", item.outbound),
-      choiceLabel("inbound", item.inbound),
-      formatEUR(item.total ?? 0)
-    ];
+    const tags = item.dayType === "sick"
+      ? [formatEUR(item.total ?? 0)]
+      : [
+          choiceLabel("outbound", item.outbound),
+          choiceLabel("inbound", item.inbound),
+          formatEUR(item.total ?? 0)
+        ];
     return `
       <div class="recent-item">
         <div>
@@ -831,8 +841,10 @@ async function importDataFromJson(e) {
         date: dateId,
         outbound: validChoice(ride.outbound) ? ride.outbound : "na",
         inbound: validChoice(ride.inbound) ? ride.inbound : "na",
+        dayType: ride?.dayType === "sick" ? "sick" : (ride?.dayType === "free" ? "free" : "normal"),
+        isSick: ride?.dayType === "sick" || ride?.isSick === true,
         weekday: weekdayIndex(dateId),
-        ...computeDayTotals(ride, currentSettings()),
+        ...computeDayTotals({ outbound: validChoice(ride.outbound) ? ride.outbound : "na", inbound: validChoice(ride.inbound) ? ride.inbound : "na" }, currentSettings()),
         updatedAt: state.firebaseEnabled ? serverTimestamp() : new Date().toISOString(),
         updatedBy: state.user?.uid || "import"
       };
@@ -953,3 +965,4 @@ function escapeHtml(s) {
 function validChoice(k) {
   return ["bike","bus","car_drop","car_pickup","carpool","na"].includes(String(k));
 }
+
