@@ -524,3 +524,118 @@ body{
     font-size:.72rem;
   }
 }
+
+
+/* ===== Header layout: Datum links, Tegoed rechts ===== */
+.top-headings{
+  display:grid;
+  grid-template-columns:1fr auto;
+  align-items:end;
+  gap:12px;
+  margin-bottom:8px;
+}
+.top-heading-left,
+.top-heading-right{
+  color:var(--muted);
+  font-size:.78rem;
+  font-weight:700;
+  letter-spacing:.02em;
+}
+.top-heading-left{
+  text-align:left;
+}
+.top-heading-right{
+  text-align:right;
+}
+.top-row-split{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px;
+}
+.date-panel{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:8px;
+  min-width:0;
+}
+.balance-wrap{
+  display:flex;
+  justify-content:flex-end;
+  min-width:0;
+}
+.balance-box-plain{
+  min-width:0;
+  width:auto;
+  padding:8px 10px;
+  text-align:right;
+}
+.balance-box-plain .balance{
+  text-align:right;
+}
+.balance-box-plain #dayValue{
+  display:none !important;
+}
+.header-right,
+.header-right-inline,
+.balance-label-inline,
+.top-tools{
+  all:unset;
+}
+@media (max-width:640px){
+  .top-headings{
+    grid-template-columns:1fr auto;
+    margin-bottom:6px;
+  }
+  .top-row-split{
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:10px;
+  }
+  .date-panel{
+    gap:6px;
+  }
+  .balance-box-plain{
+    padding:7px 8px;
+  }
+}
+
+
+/* ===== Datumvlak opent kalender ===== */
+.date-panel{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:8px;
+  min-width:0;
+}
+.date-picker-wrap{
+  position:relative;
+  flex:1 1 auto;
+  min-width:0;
+}
+.date-picker-wrap .date-display{
+  width:100%;
+}
+.date-input-overlay{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  opacity:0;
+  cursor:pointer;
+  pointer-events:auto;
+  min-height:0;
+  padding:0;
+  border:0;
+  background:transparent;
+}
+.date-input-overlay::-webkit-calendar-picker-indicator{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  margin:0;
+  opacity:0;
+  cursor:pointer;
+}
