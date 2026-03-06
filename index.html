@@ -10,30 +10,32 @@
 <body>
   <div id="app" class="app">
     <header class="top-card">
-      <div class="top-row">
-        <div>
+      <div class="top-row top-row-minimal">
+        <div class="header-left">
           <div class="eyebrow">Fiets Tegoed</div>
-          <h1 id="dateTitle">Vandaag</h1>
-          <div id="dateSub" class="muted"></div>
+          <h1 id="dateTitle" class="hidden">Vandaag</h1>
+          <div id="dateSub" class="muted hidden"></div>
         </div>
-        <div id="balanceTrigger" class="balance-box" role="button" tabindex="0" title="Tik voor uitbetaling" style="cursor:pointer;">
-          <div class="eyebrow">Tegoed</div>
-          <div id="balanceValue" class="balance">€ 0,00</div>
-          <div id="dayValue" class="muted small"></div>
+
+        <div class="header-right">
+          <div class="top-tools">
+            <button id="prevDayBtn" class="btn ghost nav-btn" type="button">◀</button>
+            <input id="dateInput" type="date" class="date-input" />
+            <button id="nextDayBtn" class="btn ghost nav-btn" type="button">▶</button>
+          </div>
+
+          <div id="balanceTrigger" class="balance-box" role="button" tabindex="0" title="Tik voor uitbetaling">
+            <div class="eyebrow">Tegoed</div>
+            <div id="balanceValue" class="balance">€ 0,00</div>
+            <div id="dayValue" class="muted small"></div>
+          </div>
         </div>
       </div>
 
-      <div class="nav-row">
-        <button id="prevDayBtn" class="btn ghost" type="button">◀</button>
-        <input id="dateInput" type="date" class="date-input" />
-        <button id="nextDayBtn" class="btn ghost" type="button">▶</button>
-      </div>
-
-      <div id="dayStatus" class="pill-row"></div>
+      <div id="dayStatus" class="pill-row hidden"></div>
     </header>
 
     <section class="quick-card">
-      <div class="section-title">Los invullen (2 clicks)</div>
       <div class="route-grid">
         <div class="route-col">
           <div class="route-label">Heenweg</div>
@@ -207,7 +209,7 @@
         Akkoord naam
         <input id="payoutAgreeNameInput" type="text" maxlength="80" placeholder="Larah Fae" />
       </label>
-      <label class="row" style="gap:10px; align-items:center; margin-top:10px;">
+      <label class="row payout-check-row">
         <input id="payoutAgreeCheck" type="checkbox" />
         <span>Larah Fae gaat akkoord met deze uitbetaling</span>
       </label>
