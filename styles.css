@@ -101,12 +101,12 @@ body{
 #dayValue:empty{display:none}
 .top-tools{
   min-width:0;
-  width:min(75%, 154px);
+  width:min(75%, 210px);
   display:grid;
   grid-template-columns:28px minmax(0,1fr) 28px;
   gap:4px;
   align-items:stretch;
-  justify-self:end;
+  justify-self:start;
   position:relative;
 }
 .date-display{
@@ -115,7 +115,7 @@ body{
   border-radius:10px;
   background:#0d1626;
   color:var(--text);
-  padding:6px 8px;
+  padding:6px 10px;
   min-height:32px;
   font-size:13px;
   font-weight:700;
@@ -123,7 +123,7 @@ body{
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
-  text-align:center;
+  text-align:left;
   cursor:pointer;
 }
 .date-display:focus-visible{
