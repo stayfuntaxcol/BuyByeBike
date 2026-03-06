@@ -1294,7 +1294,7 @@ function weekdayIndex(dateId) {
   return parseDateLocal(dateId).getDay(); // 0 Sun - 6 Sat
 }
 function formatLongDateNL(d) {
-  return new Intl.DateTimeFormat("nl-NL", { weekday:"long", day:"numeric", month:"long", year:"numeric" }).format(d);
+  return new Intl.DateTimeFormat("nl-NL", { day:"numeric", month:"long" }).format(d);
 }
 function formatShortDateNL(d) {
   return new Intl.DateTimeFormat("nl-NL", { weekday:"short", day:"2-digit", month:"2-digit" }).format(d);
