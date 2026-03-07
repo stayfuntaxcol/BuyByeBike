@@ -4,31 +4,28 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Fiets Tegoed • Larah Fae</title>
+  <title>Buy Bye Bike • Larah Fae</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
   <div id="app" class="app">
     <header class="top-card">
-      <div class="top-headings">
-        <div class="top-heading-left">Datum:</div>
-        <div class="top-heading-right">Tegoed</div>
-      </div>
+      <div class="app-name">Buy Bye Bike</div>
 
-      <div class="top-row top-row-split">
+      <div class="top-bar-clean">
         <div class="date-panel" id="datePanel">
-          <button id="prevDayBtn" class="btn ghost nav-btn" type="button">◀</button>
+          <button id="prevDayBtn" class="btn ghost nav-btn" type="button" aria-label="Vorige dag">◀</button>
           <div class="date-picker-wrap" id="datePickerWrap">
             <button id="dateDisplayBtn" class="date-display" type="button" aria-label="Kies datum">6 maart</button>
             <input id="dateInput" type="date" class="date-input date-input-overlay" aria-label="Kies datum" />
           </div>
-          <button id="nextDayBtn" class="btn ghost nav-btn" type="button">▶</button>
+          <button id="nextDayBtn" class="btn ghost nav-btn" type="button" aria-label="Volgende dag">▶</button>
         </div>
 
         <div class="balance-wrap">
-          <div id="balanceTrigger" class="balance-box balance-box-plain" role="button" tabindex="0" title="Tik voor uitbetaling">
+          <div id="balanceTrigger" class="balance-box balance-box-clean" role="button" tabindex="0" title="Tik voor uitbetaling">
             <div id="balanceValue" class="balance">€ 0,00</div>
-            <div id="dayValue" class="muted small"></div>
+            <div id="dayValue" class="muted small hidden"></div>
           </div>
         </div>
       </div>
@@ -219,7 +216,7 @@
 
       <div class="row actions-row">
         <button id="payoutCancelBtn" class="btn ghost" type="button">Annuleren</button>
-        <button id="payoutSubmitBtn" class="btn primary" type="button">Uitbetalen</button>
+        <button id="payoutSubmitBtn" class="btn primary" type="button">Opslaan</button>
       </div>
       <div id="payoutError" class="error-text"></div>
     </div>
@@ -230,4 +227,3 @@
   <script type="module" src="./app.js"></script>
 </body>
 </html>
-
