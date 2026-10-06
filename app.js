@@ -31,15 +31,21 @@ const firebaseConfig = {
   measurementId: "G-CC33FEFCL3"
 };
 
+const SCHOOL_YEAR_ID = "2026-2027";
+
+function storageKey(type) {
+  return `fietsTegoed.${SCHOOL_YEAR_ID}.${type}.local`;
+}
+
 const DEFAULTS = {
-  version: 1,
+  version: 2,
   childName: "Larah Fae",
   familyId: "larah-fae-mvt6umwe",
   childId: "larah-fae",
   parentPin: "1976",
-  startDate: "2026-03-02",
-  // Laatste schooldag voor start zomervakantie regio Midden (kan in oudermodus aangepast worden)
-  endDate: "2026-07-17",
+  startDate: "2026-08-18",
+  // Schooljaar Larah Fae 2026–2027
+  endDate: "2027-07-09",
   rates: {
     bike: 1.00,      // + per rit
     bus: -5.00,      // - per rit
@@ -48,9 +54,16 @@ const DEFAULTS = {
   },
   // Handmatige vrije dagen (weekenden worden automatisch als vrij behandeld)
   freeDays: [
-    // voorbeelden:
-    // "2026-04-27", // Koningsdag
-    // "2026-05-05"  // Bevrijdingsdag
+    "2026-11-17",
+    "2026-12-18",
+    "2027-01-20",
+    "2027-02-18",
+    "2027-02-19",
+    "2027-03-26",
+    "2027-03-29",
+    "2027-03-30",
+    "2027-05-17",
+    "2027-06-11"
   ]
 };
 
@@ -82,21 +95,10 @@ const QUICK_PRESETS = [
 ];
 
 const AUTO_HOLIDAYS_NORTH = [
-  { start: "2025-10-18", end: "2025-10-26", label: "Herfstvakantie" },
-  { start: "2025-12-20", end: "2026-01-04", label: "Kerstvakantie" },
-  { start: "2026-02-21", end: "2026-03-01", label: "Voorjaarsvakantie" },
-  { start: "2026-04-25", end: "2026-05-03", label: "Meivakantie" },
-  { start: "2026-07-04", end: "2026-08-16", label: "Zomervakantie" },
-  { start: "2026-10-10", end: "2026-10-18", label: "Herfstvakantie" },
-  { start: "2026-12-19", end: "2027-01-03", label: "Kerstvakantie" },
-  { start: "2027-02-20", end: "2027-02-28", label: "Voorjaarsvakantie" },
-  { start: "2027-04-24", end: "2027-05-02", label: "Meivakantie" },
-  { start: "2027-07-10", end: "2027-08-22", label: "Zomervakantie" },
-  { start: "2027-10-16", end: "2027-10-24", label: "Herfstvakantie" },
-  { start: "2027-12-25", end: "2028-01-09", label: "Kerstvakantie" },
-  { start: "2028-02-19", end: "2028-02-27", label: "Voorjaarsvakantie" },
-  { start: "2028-04-29", end: "2028-05-07", label: "Meivakantie" },
-  { start: "2028-07-15", end: "2028-08-27", label: "Zomervakantie" }
+  { start: "2026-10-12", end: "2026-10-16", label: "Herfstvakantie" },
+  { start: "2026-12-21", end: "2027-01-01", label: "Kerstvakantie" },
+  { start: "2027-02-22", end: "2027-02-26", label: "Voorjaarsvakantie" },
+  { start: "2027-04-26", end: "2027-05-07", label: "Meivakantie" }
 ];
 
 
@@ -369,7 +371,7 @@ function currentSettings() {
 
 function loadLocalFallbackRides() {
   try {
-    const raw = JSON.parse(localStorage.getItem("fietsTegoed.rides.local") || "{}");
+    const raw = JSON.parse(localStorage.getItem(storageKey("rides")) || "{}");
     for (const [k, v] of Object.entries(raw)) {
       if (validDateId(k)) state.rides.set(k, v);
     }
@@ -381,7 +383,7 @@ function loadLocalFallbackRides() {
 
 function loadLocalFallbackPayouts() {
   try {
-    const raw = JSON.parse(localStorage.getItem("fietsTegoed.payouts.local") || "{}");
+    const raw = JSON.parse(localStorage.getItem(storageKey("payouts")) || "{}");
     for (const [k, v] of Object.entries(raw)) {
       if (k) state.payouts.set(k, v);
     }
@@ -391,12 +393,12 @@ function loadLocalFallbackPayouts() {
 }
 
 function persistLocalPayouts() {
-  localStorage.setItem("fietsTegoed.payouts.local", JSON.stringify(Object.fromEntries(state.payouts)));
+  localStorage.setItem(storageKey("payouts"), JSON.stringify(Object.fromEntries(state.payouts)));
 }
 
 function loadLocalFallbackSettings() {
   try {
-    const saved = localStorage.getItem("fietsTegoed.settings.local");
+    const saved = localStorage.getItem(storageKey("settings"));
     if (saved) {
       const parsed = JSON.parse(saved);
       state.settings = sanitizeSettings(parsed);
@@ -440,14 +442,21 @@ function startFirestoreListeners() {
   if (state.unsubPayouts) state.unsubPayouts();
 
   const familyRef = doc(state.db, "families", s.familyId);
-  const settingsRef = doc(state.db, "families", s.familyId, "config", "settings");
-  const childRef = doc(state.db, "families", s.familyId, "children", s.childId);
+  const yearRef = doc(state.db, "families", s.familyId, "schoolYears", SCHOOL_YEAR_ID);
+  const settingsRef = doc(state.db, "families", s.familyId, "schoolYears", SCHOOL_YEAR_ID, "config", "settings");
+  const childRef = doc(state.db, "families", s.familyId, "schoolYears", SCHOOL_YEAR_ID, "children", s.childId);
 
   // Zorg dat basisdocs bestaan (idempotent)
   Promise.all([
     setDoc(familyRef, {
       familyId: s.familyId,
       createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    }, { merge: true }),
+    setDoc(yearRef, {
+      schoolYearId: SCHOOL_YEAR_ID,
+      startDate: s.startDate,
+      endDate: s.endDate,
       updatedAt: serverTimestamp()
     }, { merge: true }),
     setDoc(settingsRef, serializeSettingsForFirestore(s), { merge: true }),
@@ -473,7 +482,7 @@ function startFirestoreListeners() {
     setSyncState(`Instellingen: ${fb.short}`);
   });
 
-  const ridesCol = collection(state.db, "families", s.familyId, "children", s.childId, "rides");
+  const ridesCol = collection(state.db, "families", s.familyId, "schoolYears", SCHOOL_YEAR_ID, "children", s.childId, "rides");
   const ridesQuery = query(ridesCol, orderBy("dateId", "asc"));
 
   state.unsubRides = onSnapshot(ridesQuery, (snap) => {
@@ -488,7 +497,7 @@ function startFirestoreListeners() {
     setSyncState(`Ritten: ${fb.short}`);
   });
 
-  const payoutsCol = collection(state.db, "families", s.familyId, "children", s.childId, "payouts");
+  const payoutsCol = collection(state.db, "families", s.familyId, "schoolYears", SCHOOL_YEAR_ID, "children", s.childId, "payouts");
   const payoutsQuery = query(payoutsCol, orderBy("payoutDate", "desc"));
 
   state.unsubPayouts = onSnapshot(payoutsQuery, (snap) => {
@@ -503,12 +512,13 @@ function startFirestoreListeners() {
     setSyncState(`Uitbetalingen: ${fb.short}`);
   });
 
-  setSyncState(`Sync actief • ${s.familyId}/${s.childId}`);
+  setSyncState(`Sync actief • ${SCHOOL_YEAR_ID} • ${s.familyId}/${s.childId}`);
 }
 
 function serializeSettingsForFirestore(s) {
   return {
-    version: 1,
+    version: 2,
+    schoolYearId: SCHOOL_YEAR_ID,
     childName: s.childName,
     familyId: s.familyId,
     childId: s.childId,
@@ -611,10 +621,12 @@ async function saveSettingsFromForm() {
 
   try {
     if (state.firebaseEnabled && state.db && state.authReady) {
-      const settingsRef = doc(state.db, "families", next.familyId, "config", "settings");
-      const childRef = doc(state.db, "families", next.familyId, "children", next.childId);
+      const settingsRef = doc(state.db, "families", next.familyId, "schoolYears", SCHOOL_YEAR_ID, "config", "settings");
+      const childRef = doc(state.db, "families", next.familyId, "schoolYears", SCHOOL_YEAR_ID, "children", next.childId);
       const familyRef = doc(state.db, "families", next.familyId);
+      const yearRef = doc(state.db, "families", next.familyId, "schoolYears", SCHOOL_YEAR_ID);
       await setDoc(familyRef, { familyId: next.familyId, updatedAt: serverTimestamp() }, { merge: true });
+      await setDoc(yearRef, { schoolYearId: SCHOOL_YEAR_ID, startDate: next.startDate, endDate: next.endDate, updatedAt: serverTimestamp() }, { merge: true });
       await setDoc(settingsRef, serializeSettingsForFirestore(next), { merge: true });
       await setDoc(childRef, { childId: next.childId, name: next.childName, active: true, updatedAt: serverTimestamp() }, { merge: true });
       toast("Instellingen opgeslagen");
@@ -636,17 +648,17 @@ async function saveSettingsFromForm() {
 }
 
 function persistLocalSettings(s) {
-  localStorage.setItem("fietsTegoed.settings.local", JSON.stringify(s));
+  localStorage.setItem(storageKey("settings"), JSON.stringify(s));
 }
 
 function rideRefForDate(dateId) {
   const s = currentSettings();
-  return doc(state.db, "families", s.familyId, "children", s.childId, "rides", dateId);
+  return doc(state.db, "families", s.familyId, "schoolYears", SCHOOL_YEAR_ID, "children", s.childId, "rides", dateId);
 }
 
 function payoutsCollectionRef() {
   const s = currentSettings();
-  return collection(state.db, "families", s.familyId, "children", s.childId, "payouts");
+  return collection(state.db, "families", s.familyId, "schoolYears", SCHOOL_YEAR_ID, "children", s.childId, "payouts");
 }
 
 function nextPayoutId() {
@@ -703,12 +715,12 @@ async function saveRideForSelectedDate({ outbound, inbound }) {
     }
   } else {
     // lokale fallback
-    const local = JSON.parse(localStorage.getItem("fietsTegoed.rides.local") || "{}");
+    const local = JSON.parse(localStorage.getItem(storageKey("rides")) || "{}");
     local[dateId] = {
       ...payload,
       updatedAt: new Date().toISOString()
     };
-    localStorage.setItem("fietsTegoed.rides.local", JSON.stringify(local));
+    localStorage.setItem(storageKey("rides"), JSON.stringify(local));
     state.rides.set(dateId, local[dateId]);
     renderAll();
   }
@@ -734,7 +746,7 @@ async function applySingleChoice(route, choiceKey) {
 function getRideForDate(dateId) {
   if (state.rides.has(dateId)) return state.rides.get(dateId);
   try {
-    const local = JSON.parse(localStorage.getItem("fietsTegoed.rides.local") || "{}");
+    const local = JSON.parse(localStorage.getItem(storageKey("rides")) || "{}");
     return local[dateId] || null;
   } catch {
     return null;
@@ -1214,7 +1226,7 @@ async function importDataFromJson(e) {
     }
 
     if (!state.firebaseEnabled) {
-      localStorage.setItem("fietsTegoed.rides.local", JSON.stringify(Object.fromEntries(state.rides)));
+      localStorage.setItem(storageKey("rides"), JSON.stringify(Object.fromEntries(state.rides)));
       persistLocalPayouts();
     }
 
