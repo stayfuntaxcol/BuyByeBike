@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // BuyByeBike gebruikt Firebase Anonymous Auth.
+    // Data per schooljaar staat onder:
+    // /families/{familyId}/schoolYears/{schoolYearId}/...
+    // Verwijderen is nergens toegestaan.
+
+    match /families/{familyId} {
+      allow read, create, update: if signedIn();
+      allow delete: if false;
+    }
+
+    match /families/{familyId}/{document=**} {
+      allow read, create, update: if signedIn();
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
