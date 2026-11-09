@@ -31,10 +31,52 @@ const firebaseConfig = {
   measurementId: "G-CC33FEFCL3"
 };
 
-const SCHOOL_YEAR_ID = "2026-2027";
+const DEFAULT_SCHOOL_YEAR_ID = "2026-2027";
+
+const SCHOOL_YEARS = {
+  "2026-2027": {
+    label: "2026–2027",
+    startDate: "2026-08-18",
+    endDate: "2027-07-09",
+    legacy: false,
+    holidays: [
+      { start: "2026-10-12", end: "2026-10-16", label: "Herfstvakantie" },
+      { start: "2026-12-21", end: "2027-01-01", label: "Kerstvakantie" },
+      { start: "2027-02-22", end: "2027-02-26", label: "Voorjaarsvakantie" },
+      { start: "2027-04-26", end: "2027-05-07", label: "Meivakantie" }
+    ],
+    freeDays: [
+      "2026-11-17", "2026-12-18", "2027-01-20", "2027-02-18", "2027-02-19",
+      "2027-03-26", "2027-03-29", "2027-03-30", "2027-05-17", "2027-06-11"
+    ]
+  },
+  "2025-2026": {
+    label: "2025–2026",
+    startDate: "2026-03-02",
+    endDate: "2026-07-17",
+    legacy: true,
+    holidays: [
+      { start: "2026-04-25", end: "2026-05-03", label: "Meivakantie" },
+      { start: "2026-07-04", end: "2026-07-17", label: "Zomervakantie" }
+    ],
+    freeDays: []
+  }
+};
+
+function initialSchoolYearId() {
+  const requested = new URLSearchParams(location.search).get("year");
+  if (requested && SCHOOL_YEARS[requested]) return requested;
+  const saved = localStorage.getItem("fietsTegoed.selectedSchoolYear");
+  if (saved && SCHOOL_YEARS[saved]) return saved;
+  return DEFAULT_SCHOOL_YEAR_ID;
+}
+
+function currentYearConfig() {
+  return SCHOOL_YEARS[state.schoolYearId] || SCHOOL_YEARS[DEFAULT_SCHOOL_YEAR_ID];
+}
 
 function storageKey(type) {
-  return `fietsTegoed.${SCHOOL_YEAR_ID}.${type}.local`;
+  return `fietsTegoed.${state.schoolYearId}.${type}.local`;
 }
 
 const DEFAULTS = {
@@ -94,16 +136,11 @@ const QUICK_PRESETS = [
   { id: "free",      label: "⛔⛔ Vrij", outbound: "na", inbound: "na" }
 ];
 
-const AUTO_HOLIDAYS_NORTH = [
-  { start: "2026-10-12", end: "2026-10-16", label: "Herfstvakantie" },
-  { start: "2026-12-21", end: "2027-01-01", label: "Kerstvakantie" },
-  { start: "2027-02-22", end: "2027-02-26", label: "Voorjaarsvakantie" },
-  { start: "2027-04-26", end: "2027-05-07", label: "Meivakantie" }
-];
 
 
 
 const state = {
+  schoolYearId: initialSchoolYearId(),
   authReady: false,
   user: null,
   db: null,
@@ -124,6 +161,7 @@ document.addEventListener("DOMContentLoaded", init);
 async function init() {
   ensureDynamicUI();
   cacheEls();
+  populateSchoolYearSelect();
   wireStaticUI();
   renderChoiceButtons();
   renderQuickButtons();
@@ -161,10 +199,10 @@ async function init() {
 
 function cacheEls() {
   [
-    "dateTitle","dateSub","balanceValue","dayValue","dateInput","dateDisplayBtn","datePanel","datePickerWrap","prevDayBtn","nextDayBtn","dayStatus","quickButtons",
+    "schoolYearSelect","dateTitle","dateSub","balanceValue","dayValue","dateInput","dateDisplayBtn","datePanel","datePickerWrap","prevDayBtn","nextDayBtn","dayStatus","quickButtons",
     "outboundButtons","inboundButtons","markVrijBtn","markSickBtn","copyLinkBtn",
     "statBikeRides","statFullBikeDays","statBusRides","statCarRides","statCarpoolRides","statFamilyCost",
-    "scenarioDays","scenarioExtra","scenarioTotal","recentList","syncState",
+    "scenarioBox","scenarioDays","scenarioExtra","scenarioTotal","recentList","syncState",
     "settingsCard","parentModeBtn","openParentModeBtn","closeSettingsBtn",
     "childNameInput","startDateInput","endDateInput","familyIdInput","childIdInput","pinInput",
     "rateBikeInput","rateBusInput","rateCarInput","rateCarpoolInput","freeDaysTextarea",
@@ -184,6 +222,8 @@ function wireStaticUI() {
   els.dateInput.value = state.selectedDate;
 
   hideLegacyActionButtons();
+
+  els.schoolYearSelect?.addEventListener("change", (e) => switchSchoolYear(e.target.value));
 
   els.prevDayBtn?.addEventListener("click", () => shiftSelectedDate(-1));
   els.nextDayBtn?.addEventListener("click", () => shiftSelectedDate(1));
@@ -365,8 +405,54 @@ function renderQuickButtons() {
 }
 
 
+function populateSchoolYearSelect() {
+  if (!els.schoolYearSelect) return;
+  els.schoolYearSelect.innerHTML = Object.entries(SCHOOL_YEARS)
+    .map(([id, cfg]) => `<option value="${id}">Schooljaar ${cfg.label}</option>`)
+    .join("");
+  els.schoolYearSelect.value = state.schoolYearId;
+}
+
+function defaultsForYear(yearId = state.schoolYearId) {
+  const cfg = SCHOOL_YEARS[yearId] || SCHOOL_YEARS[DEFAULT_SCHOOL_YEAR_ID];
+  const out = structuredClone(DEFAULTS);
+  out.startDate = cfg.startDate;
+  out.endDate = cfg.endDate;
+  out.freeDays = [...cfg.freeDays];
+  return out;
+}
+
+async function switchSchoolYear(yearId) {
+  if (!SCHOOL_YEARS[yearId] || yearId === state.schoolYearId) return;
+
+  if (state.unsubSettings) state.unsubSettings();
+  if (state.unsubRides) state.unsubRides();
+  if (state.unsubPayouts) state.unsubPayouts();
+  state.unsubSettings = state.unsubRides = state.unsubPayouts = null;
+
+  state.schoolYearId = yearId;
+  localStorage.setItem("fietsTegoed.selectedSchoolYear", yearId);
+
+  const url = new URL(location.href);
+  url.searchParams.set("year", yearId);
+  history.replaceState({}, "", url);
+
+  state.settings = null;
+  state.rides.clear();
+  state.payouts.clear();
+
+  loadLocalFallbackSettings();
+  loadLocalFallbackRides();
+  loadLocalFallbackPayouts();
+  applySettingsToForm();
+  populateSchoolYearSelect();
+  renderAll();
+
+  if (state.authReady && state.db) startFirestoreListeners();
+}
+
 function currentSettings() {
-  return state.settings || structuredClone(DEFAULTS);
+  return state.settings || defaultsForYear();
 }
 
 function loadLocalFallbackRides() {
@@ -404,7 +490,7 @@ function loadLocalFallbackSettings() {
       state.settings = sanitizeSettings(parsed);
     } else {
       const params = new URLSearchParams(location.search);
-      const defaults = structuredClone(DEFAULTS);
+      const defaults = defaultsForYear();
       const qFamily = params.get("family");
       if (qFamily) defaults.familyId = slugify(qFamily);
       state.settings = sanitizeSettings(defaults);
@@ -419,9 +505,10 @@ function loadLocalFallbackSettings() {
     persistLocalSettings(state.settings);
   }
   catch {
-    state.settings = structuredClone(DEFAULTS);
+    state.settings = defaultsForYear();
   }
-  state.selectedDate = todayLocalDateString();
+  const s = currentSettings();
+  state.selectedDate = clampDate(todayLocalDateString(), s.startDate, s.endDate);
   els.dateInput.value = state.selectedDate;
 }
 
@@ -442,31 +529,36 @@ function startFirestoreListeners() {
   if (state.unsubPayouts) state.unsubPayouts();
 
   const familyRef = doc(state.db, "families", s.familyId);
-  const yearRef = doc(state.db, "families", s.familyId, "schoolYears", SCHOOL_YEAR_ID);
-  const settingsRef = doc(state.db, "families", s.familyId, "schoolYears", SCHOOL_YEAR_ID, "config", "settings");
-  const childRef = doc(state.db, "families", s.familyId, "schoolYears", SCHOOL_YEAR_ID, "children", s.childId);
+  const settingsRef = settingsRefForYear(s);
+  const childRef = childRefForYear(s);
 
-  // Zorg dat basisdocs bestaan (idempotent)
-  Promise.all([
+  const initWrites = [
     setDoc(familyRef, {
       familyId: s.familyId,
-      createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     }, { merge: true }),
-    setDoc(yearRef, {
-      schoolYearId: SCHOOL_YEAR_ID,
-      startDate: s.startDate,
-      endDate: s.endDate,
-      updatedAt: serverTimestamp()
-    }, { merge: true }),
-    setDoc(settingsRef, serializeSettingsForFirestore(s), { merge: true }),
     setDoc(childRef, {
       childId: s.childId,
       name: s.childName,
       active: true,
       updatedAt: serverTimestamp()
     }, { merge: true })
-  ]).catch(err => console.error("Init docs failed", err));
+  ];
+
+  if (!currentYearConfig().legacy) {
+    const yearRef = doc(state.db, "families", s.familyId, "schoolYears", state.schoolYearId);
+    initWrites.push(
+      setDoc(yearRef, {
+        schoolYearId: state.schoolYearId,
+        startDate: s.startDate,
+        endDate: s.endDate,
+        updatedAt: serverTimestamp()
+      }, { merge: true }),
+      setDoc(settingsRef, serializeSettingsForFirestore(s), { merge: true })
+    );
+  }
+
+  Promise.all(initWrites).catch(err => console.error("Init docs failed", err));
 
   state.unsubSettings = onSnapshot(settingsRef, (snap) => {
     if (snap.exists()) {
@@ -482,7 +574,7 @@ function startFirestoreListeners() {
     setSyncState(`Instellingen: ${fb.short}`);
   });
 
-  const ridesCol = collection(state.db, "families", s.familyId, "schoolYears", SCHOOL_YEAR_ID, "children", s.childId, "rides");
+  const ridesCol = ridesCollectionRef(s);
   const ridesQuery = query(ridesCol, orderBy("dateId", "asc"));
 
   state.unsubRides = onSnapshot(ridesQuery, (snap) => {
@@ -497,7 +589,7 @@ function startFirestoreListeners() {
     setSyncState(`Ritten: ${fb.short}`);
   });
 
-  const payoutsCol = collection(state.db, "families", s.familyId, "schoolYears", SCHOOL_YEAR_ID, "children", s.childId, "payouts");
+  const payoutsCol = payoutsCollectionRef(s);
   const payoutsQuery = query(payoutsCol, orderBy("payoutDate", "desc"));
 
   state.unsubPayouts = onSnapshot(payoutsQuery, (snap) => {
@@ -512,13 +604,13 @@ function startFirestoreListeners() {
     setSyncState(`Uitbetalingen: ${fb.short}`);
   });
 
-  setSyncState(`Sync actief • ${SCHOOL_YEAR_ID} • ${s.familyId}/${s.childId}`);
+  setSyncState(`Sync actief • ${state.schoolYearId} • ${s.familyId}/${s.childId}`);
 }
 
 function serializeSettingsForFirestore(s) {
   return {
     version: 2,
-    schoolYearId: SCHOOL_YEAR_ID,
+    schoolYearId: state.schoolYearId,
     childName: s.childName,
     familyId: s.familyId,
     childId: s.childId,
@@ -548,7 +640,7 @@ function deserializeSettingsFromFirestore(raw, fallback) {
 }
 
 function sanitizeSettings(s) {
-  const out = structuredClone(DEFAULTS);
+  const out = defaultsForYear();
   out.childName = String(s?.childName || out.childName).trim() || out.childName;
   out.familyId = slugify(String(s?.familyId || out.familyId)) || out.familyId;
   out.childId = slugify(String(s?.childId || out.childId)) || out.childId;
@@ -621,12 +713,14 @@ async function saveSettingsFromForm() {
 
   try {
     if (state.firebaseEnabled && state.db && state.authReady) {
-      const settingsRef = doc(state.db, "families", next.familyId, "schoolYears", SCHOOL_YEAR_ID, "config", "settings");
-      const childRef = doc(state.db, "families", next.familyId, "schoolYears", SCHOOL_YEAR_ID, "children", next.childId);
+      const settingsRef = settingsRefForYear(next);
+      const childRef = childRefForYear(next);
       const familyRef = doc(state.db, "families", next.familyId);
-      const yearRef = doc(state.db, "families", next.familyId, "schoolYears", SCHOOL_YEAR_ID);
       await setDoc(familyRef, { familyId: next.familyId, updatedAt: serverTimestamp() }, { merge: true });
-      await setDoc(yearRef, { schoolYearId: SCHOOL_YEAR_ID, startDate: next.startDate, endDate: next.endDate, updatedAt: serverTimestamp() }, { merge: true });
+      if (!currentYearConfig().legacy) {
+        const yearRef = doc(state.db, "families", next.familyId, "schoolYears", state.schoolYearId);
+        await setDoc(yearRef, { schoolYearId: state.schoolYearId, startDate: next.startDate, endDate: next.endDate, updatedAt: serverTimestamp() }, { merge: true });
+      }
       await setDoc(settingsRef, serializeSettingsForFirestore(next), { merge: true });
       await setDoc(childRef, { childId: next.childId, name: next.childName, active: true, updatedAt: serverTimestamp() }, { merge: true });
       toast("Instellingen opgeslagen");
@@ -651,14 +745,36 @@ function persistLocalSettings(s) {
   localStorage.setItem(storageKey("settings"), JSON.stringify(s));
 }
 
-function rideRefForDate(dateId) {
-  const s = currentSettings();
-  return doc(state.db, "families", s.familyId, "schoolYears", SCHOOL_YEAR_ID, "children", s.childId, "rides", dateId);
+function settingsRefForYear(s = currentSettings()) {
+  if (currentYearConfig().legacy) {
+    return doc(state.db, "families", s.familyId, "config", "settings");
+  }
+  return doc(state.db, "families", s.familyId, "schoolYears", state.schoolYearId, "config", "settings");
 }
 
-function payoutsCollectionRef() {
-  const s = currentSettings();
-  return collection(state.db, "families", s.familyId, "schoolYears", SCHOOL_YEAR_ID, "children", s.childId, "payouts");
+function childRefForYear(s = currentSettings()) {
+  if (currentYearConfig().legacy) {
+    return doc(state.db, "families", s.familyId, "children", s.childId);
+  }
+  return doc(state.db, "families", s.familyId, "schoolYears", state.schoolYearId, "children", s.childId);
+}
+
+function ridesCollectionRef(s = currentSettings()) {
+  if (currentYearConfig().legacy) {
+    return collection(state.db, "families", s.familyId, "children", s.childId, "rides");
+  }
+  return collection(state.db, "families", s.familyId, "schoolYears", state.schoolYearId, "children", s.childId, "rides");
+}
+
+function rideRefForDate(dateId) {
+  return doc(ridesCollectionRef(), dateId);
+}
+
+function payoutsCollectionRef(s = currentSettings()) {
+  if (currentYearConfig().legacy) {
+    return collection(state.db, "families", s.familyId, "children", s.childId, "payouts");
+  }
+  return collection(state.db, "families", s.familyId, "schoolYears", state.schoolYearId, "children", s.childId, "payouts");
 }
 
 function nextPayoutId() {
@@ -666,6 +782,10 @@ function nextPayoutId() {
 }
 
 async function saveRideForSelectedDate({ outbound, inbound }) {
+  if (state.schoolYearId !== DEFAULT_SCHOOL_YEAR_ID) {
+    toast("Voorgaand schooljaar: ritten zijn alleen-lezen");
+    return;
+  }
   const dateId = state.selectedDate;
   const s = currentSettings();
   const schoolInfo = classifyDate(dateId, s);
@@ -769,7 +889,8 @@ function renderAll() {
   if (els.dayValue) els.dayValue.textContent = "";
   if (els.dayStatus) els.dayStatus.innerHTML = "";
 
-  const disableChoices = !info.inRange || info.isFreeDay;
+  const isHistoricalYear = state.schoolYearId !== DEFAULT_SCHOOL_YEAR_ID;
+  const disableChoices = !info.inRange || info.isFreeDay || isHistoricalYear;
   [...els.outboundButtons.querySelectorAll("button"), ...els.inboundButtons.querySelectorAll("button")]
     .forEach(btn => btn.disabled = disableChoices);
 
@@ -788,6 +909,7 @@ function renderAll() {
   els.statFamilyCost.textContent = formatEUR(totals.familyCost);
 
   const scenario = computeScenarioFromDate(selected, s, totals.balance);
+  if (els.scenarioBox) els.scenarioBox.classList.toggle("hidden", isHistoricalYear);
   els.scenarioDays.textContent = String(scenario.remainingSchoolDays);
   els.scenarioExtra.textContent = formatEUR(scenario.extraPossible);
   els.scenarioTotal.textContent = formatEUR(scenario.expectedEndBalance);
@@ -810,15 +932,15 @@ function highlightChoiceButtons(ride) {
 function renderRecentList(s) {
   const items = Array.from(state.rides.values())
     .filter(r => validDateId(r.dateId) && r.dateId >= s.startDate && r.dateId <= s.endDate)
-    .sort((a,b) => (a.dateId < b.dateId ? 1 : -1))
-    .slice(0, 12);
+    .sort((a,b) => (a.dateId < b.dateId ? 1 : -1));
+  const visibleItems = state.schoolYearId === DEFAULT_SCHOOL_YEAR_ID ? items.slice(0, 12) : items;
 
-  if (!items.length) {
+  if (!visibleItems.length) {
     els.recentList.innerHTML = `<div class="muted small">Nog geen registraties.</div>`;
     return;
   }
 
-  els.recentList.innerHTML = items.map(item => {
+  els.recentList.innerHTML = visibleItems.map(item => {
     const dateStr = formatShortDateNL(parseDateLocal(item.dateId));
     const tags = [
       choiceLabel("outbound", item.outbound),
@@ -1003,7 +1125,7 @@ function classifyDate(dateId, s) {
 
 
 function getAutoHoliday(dateId) {
-  return AUTO_HOLIDAYS_NORTH.find(period => dateId >= period.start && dateId <= period.end) || null;
+  return (currentYearConfig().holidays || []).find(period => dateId >= period.start && dateId <= period.end) || null;
 }
 
 function shiftSelectedDate(delta) {
