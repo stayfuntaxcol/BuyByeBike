@@ -66,8 +66,6 @@ const SCHOOL_YEARS = {
 function initialSchoolYearId() {
   const requested = new URLSearchParams(location.search).get("year");
   if (requested && SCHOOL_YEARS[requested]) return requested;
-  const saved = localStorage.getItem("fietsTegoed.selectedSchoolYear");
-  if (saved && SCHOOL_YEARS[saved]) return saved;
   return DEFAULT_SCHOOL_YEAR_ID;
 }
 
@@ -431,8 +429,6 @@ async function switchSchoolYear(yearId) {
   state.unsubSettings = state.unsubRides = state.unsubPayouts = null;
 
   state.schoolYearId = yearId;
-  localStorage.setItem("fietsTegoed.selectedSchoolYear", yearId);
-
   const url = new URL(location.href);
   url.searchParams.set("year", yearId);
   history.replaceState({}, "", url);
